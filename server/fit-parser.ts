@@ -62,31 +62,19 @@ interface FitData {
   device_infos?: FitDeviceInfo[];
 }
 
-export function parseFitFile(buffer: Buffer, fileName: string): Promise<WorkoutData> {
-  return new Promise((resolve, reject) => {
-    const fitParser = new FitParser({
-      force: true,
-      speedUnit: "m/s",
-      lengthUnit: "m",
-      temperatureUnit: "celsius",
-      elapsedRecordField: true,
-      mode: "list",
-    });
-
-    fitParser.parse(buffer, (error: Error | null, data: FitData) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      try {
-        const workoutData = transformFitData(data, fileName);
-        resolve(workoutData);
-      } catch (transformError) {
-        reject(transformError);
-      }
-    });
+export async function parseFitFile(buffer: Buffer, fileName: string): Promise<WorkoutData> {
+  const fitParser = new FitParser({
+    force: true,
+    speedUnit: "m/s",
+    lengthUnit: "m",
+    temperatureUnit: "celsius",
+    elapsedRecordField: true,
+    mode: "list",
   });
+
+  const data = await fitParser.parseAsync(buffer) as unknown as FitData;
+  console.log("FIT data parsed, sessions:", data.sessions?.length, "records:", data.records?.length);
+  return transformFitData(data, fileName);
 }
 
 function transformFitData(data: FitData, fileName: string): WorkoutData {
