@@ -1,0 +1,62 @@
+# FIT Analyzer - AIワークアウト分析アプリ
+
+## Overview
+FITファイル（COROS、Garmin、Polar、Suunto等のスポーツウォッチ）をアップロードして、AIがワークアウトを詳細に分析・評価するWebアプリケーション。
+
+## Features
+- **FITファイル解析**: ドラッグ＆ドロップでFITファイルをアップロード
+- **メトリクス表示**: 距離、時間、ペース、心拍数、標高、カロリー等を可視化
+- **チャート表示**: 心拍数、ペース、標高、パワーの時系列グラフ
+- **ラップ詳細**: 各ラップのタイム、ペース、心拍数を表形式で表示
+- **AI評価**: OpenAIによる10段階評価、強み・改善点・トレーニング推奨事項を生成
+
+## Tech Stack
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Express.js
+- **Styling**: Tailwind CSS + shadcn/ui
+- **FIT Parsing**: fit-file-parser
+- **AI**: OpenAI (via Replit AI Integrations)
+- **Charts**: Recharts
+
+## Project Structure
+```
+client/
+  src/
+    components/       # UI components
+      file-upload.tsx      # File upload dropzone
+      metric-card.tsx      # Metric display cards
+      workout-charts.tsx   # Recharts visualizations
+      ai-analysis-panel.tsx # AI analysis results
+      lap-table.tsx        # Lap breakdown table
+    pages/
+      home.tsx             # Upload page
+      analysis.tsx         # Analysis dashboard
+    lib/
+      theme-provider.tsx   # Dark/light mode
+server/
+  routes.ts          # API endpoints
+  fit-parser.ts      # FIT file parsing
+  ai-analyzer.ts     # OpenAI integration
+shared/
+  schema.ts          # TypeScript types/schemas
+```
+
+## API Endpoints
+- `POST /api/analyze` - Upload and analyze FIT file
+  - Request: multipart/form-data with `file` field
+  - Response: `{ workout: WorkoutData, aiAnalysis: AIAnalysis }`
+
+## Environment Variables
+- `AI_INTEGRATIONS_OPENAI_API_KEY` - Auto-configured by Replit AI Integrations
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` - Auto-configured by Replit AI Integrations
+
+## Development
+```bash
+npm run dev    # Start development server
+```
+
+## Recent Changes
+- Initial implementation with FIT file parsing and AI analysis
+- Support for COROS, Garmin, Polar, Suunto FIT files
+- Dark/light mode toggle
+- Japanese language UI
