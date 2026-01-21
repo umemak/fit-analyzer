@@ -55,8 +55,36 @@ shared/
 npm run dev    # Start development server
 ```
 
+## Cloudflare Pages Deployment
+Cloudflare Pagesへのデプロイに対応しています。
+
+### ファイル構成
+```
+functions/
+  api/
+    analyze.ts         # Cloudflare Pages Function (API)
+scripts/
+  build-cloudflare.sh  # ビルドスクリプト
+wrangler.toml          # Cloudflare設定
+vite.config.cloudflare.ts  # Cloudflare用Vite設定
+CLOUDFLARE_DEPLOY.md   # デプロイ手順
+```
+
+### デプロイコマンド
+```bash
+# ビルド
+bash scripts/build-cloudflare.sh
+
+# デプロイ
+npx wrangler pages deploy dist
+```
+
+### 環境変数（Cloudflare Dashboard）
+- `OPENAI_API_KEY` - OpenAI APIキー
+
 ## Recent Changes
 - Initial implementation with FIT file parsing and AI analysis
 - Support for COROS, Garmin, Polar, Suunto FIT files
 - Dark/light mode toggle
 - Japanese language UI
+- Added Cloudflare Pages deployment support

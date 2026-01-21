@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@cloudflare/workers-types": "^4.20260120.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@octokit/rest": "^22.0.0",
@@ -78,6 +79,7 @@
     "tw-animate-css": "^1.2.5",
     "vaul": "^1.1.2",
     "wouter": "^3.3.5",
+    "wrangler": "^4.59.3",
     "ws": "^8.18.0",
     "zod": "^3.25.76",
     "zod-validation-error": "^3.5.4"
