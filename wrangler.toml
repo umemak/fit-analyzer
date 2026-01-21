@@ -6,10 +6,6 @@ compatibility_flags = ["nodejs_compat"]
 # Pages configuration
 pages_build_output_dir = "dist"
 
-# Build configuration for Functions
-[build]
-command = "npm install && bash scripts/build-cloudflare.sh"
-
 # D1 Database binding
 # Create database with: npx wrangler d1 create fit-analyzer-db
 # Then update the database_id below
