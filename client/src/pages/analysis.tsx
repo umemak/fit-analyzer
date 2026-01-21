@@ -64,7 +64,17 @@ export default function Analysis() {
   const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     async function loadData() {
+      // Set a timeout to catch hanging requests
+      timeoutId = setTimeout(() => {
+        if (isLoading) {
+          setError("データの読み込みがタイムアウトしました");
+          setIsLoading(false);
+        }
+      }, 15000); // 15 seconds timeout
+      
       if (params.id) {
         try {
           setDebugInfo(`Fetching workout ID: ${params.id}`);
@@ -114,13 +124,29 @@ export default function Analysis() {
       }
       setIsLoading(false);
     }
+    
     loadData();
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [params.id]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-7xl mx-auto space-y-6">
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg text-muted-foreground">データを読み込んでいます...</p>
+            {params.id && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Workout ID: {params.id}
+              </p>
+            )}
+          </div>
           <Skeleton className="h-14 w-full" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
