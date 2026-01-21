@@ -16,7 +16,8 @@ FITファイル（COROS、Garmin、Polar、Suunto等のスポーツウォッチ�
 - **Backend**: Express.js
 - **Styling**: Tailwind CSS + shadcn/ui
 - **FIT Parsing**: fit-file-parser
-- **AI**: OpenAI (via Replit AI Integrations)
+- **AI (Replit)**: OpenAI (via Replit AI Integrations)
+- **AI (Cloudflare)**: Cloudflare Workers AI (Llama 3.1 70B)
 - **Charts**: Recharts
 
 ## Project Structure
@@ -92,12 +93,13 @@ npx wrangler pages deploy dist
 ```
 
 ### 環境変数（Cloudflare Dashboard）
-- `OPENAI_API_KEY` - OpenAI APIキー
 - `GITHUB_CLIENT_ID` - GitHub OAuth Client ID
 - `GITHUB_CLIENT_SECRET` - GitHub OAuth Client Secret
 - `GOOGLE_CLIENT_ID` - Google OAuth Client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth Client Secret
 - `APP_URL` - アプリURL（例: https://fit-analyzer.pages.dev）
+
+**注意**: Cloudflare版ではWorkers AIを使用するため、`OPENAI_API_KEY`は不要です。
 
 ## Recent Changes
 - Initial implementation with FIT file parsing and AI analysis

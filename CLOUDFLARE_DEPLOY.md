@@ -5,9 +5,10 @@
 ## 前提条件
 
 1. Cloudflareアカウント
-2. OpenAI APIキー
-3. GitHub OAuth App（認証用）
-4. Google OAuth クレデンシャル（認証用）
+2. GitHub OAuth App（認証用）
+3. Google OAuth クレデンシャル（認証用）
+
+**注意**: このアプリは**Cloudflare Workers AI**を使用するため、OpenAI APIキーは不要です。
 
 ## デプロイ手順
 
@@ -59,11 +60,19 @@ npx wrangler d1 execute fit-analyzer-db --file=d1-schema.sql
 | Build output directory | `dist` |
 | Root directory | `/` |
 
-### 5. D1バインディングを設定
+### 5. バインディングを設定
 
+#### D1 Database
 1. Settings > Functions > D1 database bindings
 2. Variable name: `DB`
 3. D1 database: `fit-analyzer-db`
+
+#### Workers AI
+1. Settings > Functions > Workers AI
+2. Workers AIバインディングを有効化
+3. Variable name: `AI`
+
+**注意**: Workers AIは無料プランでも利用可能ですが、使用量に制限があります。詳細は[Cloudflare Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)を参照してください。
 
 ### 6. 環境変数の設定
 
@@ -71,12 +80,13 @@ npx wrangler d1 execute fit-analyzer-db --file=d1-schema.sql
 
 | 変数名 | 説明 |
 |-------|------|
-| `OPENAI_API_KEY` | OpenAI APIキー |
 | `GITHUB_CLIENT_ID` | GitHub OAuth Client ID |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth Client Secret |
 | `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
 | `APP_URL` | アプリのURL（例: `https://fit-analyzer.pages.dev`） |
+
+**注意**: `OPENAI_API_KEY`は不要です。代わりにCloudflare Workers AIを使用します。
 
 ### 7. デプロイ
 
@@ -96,13 +106,13 @@ bash scripts/build-cloudflare.sh
 
 # Wranglerでローカルサーバー起動
 npx wrangler pages dev dist \
-  --binding OPENAI_API_KEY=sk-your-key \
   --binding GITHUB_CLIENT_ID=your-id \
   --binding GITHUB_CLIENT_SECRET=your-secret \
   --binding GOOGLE_CLIENT_ID=your-id \
   --binding GOOGLE_CLIENT_SECRET=your-secret \
   --binding APP_URL=http://localhost:8788 \
-  --d1 DB=fit-analyzer-db
+  --d1 DB=fit-analyzer-db \
+  --ai AI
 ```
 
 ## ファイル構成
@@ -129,6 +139,12 @@ npx wrangler pages dev dist \
 ```
 
 ## 機能
+
+### AI分析
+- **Cloudflare Workers AI**: Meta Llama 3.1 70B Instructモデルを使用
+- ワークアウトデータをAIが分析し、パフォーマンス評価とトレーニングアドバイスを提供
+- OpenAI APIキー不要、Cloudflareのインフラ上で実行
+- モデル: `@cf/meta/llama-3.1-70b-instruct`
 
 ### 認証
 - **GitHub OAuth**: GitHubアカウントでログイン

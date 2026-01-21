@@ -1,8 +1,7 @@
 import FitParser from "fit-file-parser";
-import OpenAI from "openai";
 
 interface Env {
-  OPENAI_API_KEY: string;
+  AI: Ai;
   DB: D1Database;
 }
 
@@ -350,8 +349,7 @@ function calculatePaceConsistency(laps: Lap[]): string {
   return "変動が大きい（CV >= 10%）";
 }
 
-async function analyzeWorkout(workout: WorkoutData, apiKey: string): Promise<AIAnalysis> {
-  const openai = new OpenAI({ apiKey });
+async function analyzeWorkout(workout: WorkoutData, ai: Ai): Promise<AIAnalysis> {
   const { summary, laps, records } = workout;
   
   const heartRateVariation = calculateHeartRateVariation(records);
@@ -392,28 +390,35 @@ ${laps.slice(0, 10).map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1
   "recoveryAdvice": "(このワークアウト後の回復アドバイス)"
 }`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 2048,
-  });
+  const messages = [
+    {
+      role: "system" as const,
+      content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
+    },
+    {
+      role: "user" as const,
+      content: prompt,
+    },
+  ];
 
-  const content = response.choices[0]?.message?.content;
+  const response = await ai.run("@cf/meta/llama-3.1-70b-instruct", {
+    messages,
+    max_tokens: 2048,
+  }) as { response: string };
+
+  const content = response.response;
   if (!content) {
     throw new Error("No response from AI");
   }
 
-  const analysis = JSON.parse(content) as AIAnalysis;
+  // Extract JSON from response (handle cases where AI includes markdown code blocks)
+  let jsonContent = content;
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    jsonContent = jsonMatch[0];
+  }
+
+  const analysis = JSON.parse(jsonContent) as AIAnalysis;
   
   return {
     overallScore: Math.min(10, Math.max(1, analysis.overallScore || 7)),
@@ -475,7 +480,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     let aiAnalysis: AIAnalysis;
     try {
-      aiAnalysis = await analyzeWorkout(workoutData, context.env.OPENAI_API_KEY);
+      aiAnalysis = await analyzeWorkout(workoutData, context.env.AI);
     } catch (aiError) {
       console.error("AI analysis error:", aiError);
       aiAnalysis = {
