@@ -1,0 +1,27 @@
+# Cloudflare Pages configuration for FIT Analyzer
+name = "fit-analyzer"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages configuration
+pages_build_output_dir = "dist"
+
+# D1 Database binding
+# Create database with: npx wrangler d1 create fit-analyzer-db
+# Then update the database_id below
+[[d1_databases]]
+binding = "DB"
+database_name = "fit-analyzer-db"
+database_id = "d63d86b2-a801-46ef-9839-a14c8eaf053a"
+
+# Workers AI binding
+[ai]
+binding = "AI"
+
+# Environment variables (set these in Cloudflare Dashboard)
+# [vars]
+# GITHUB_CLIENT_ID = ""
+# GITHUB_CLIENT_SECRET = ""
+# GOOGLE_CLIENT_ID = ""
+# GOOGLE_CLIENT_SECRET = ""
+# APP_URL = "https://your-app.pages.dev"
