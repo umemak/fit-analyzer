@@ -93,6 +93,11 @@ cat > dist/_routes.json << 'ROUTES_EOF'
 }
 ROUTES_EOF
 
+# Copy functions to root for Cloudflare Pages detection
+echo "Copying functions to root..."
+rm -rf functions
+cp -r dist/functions functions
+
 echo ""
 echo "Build complete! Output in ./dist"
 echo ""
@@ -100,16 +105,16 @@ echo "Structure:"
 echo "  dist/"
 echo "    index.html                   # Frontend"
 echo "    assets/                      # Frontend assets"
-echo "    functions/api/"
-echo "      analyze.js                 # FIT解析API"
-echo "      workouts.js                # 履歴API"
-echo "      auth/"
-echo "        github.js                # GitHub OAuth"
-echo "        google.js                # Google OAuth"
-echo "        login.js                 # メール/パスワードログイン"
-echo "        register.js              # メール/パスワード登録"
-echo "        logout.js                # ログアウト"
-echo "        me.js                    # 認証状態確認"
+echo "  functions/api/                 # Functions at root (for Cloudflare Pages)"
+echo "    analyze.js                   # FIT解析API"
+echo "    workouts.js                  # 履歴API"
+echo "    auth/"
+echo "      github.js                  # GitHub OAuth"
+echo "      google.js                  # Google OAuth"
+echo "      login.js                   # メール/パスワードログイン"
+echo "      register.js                # メール/パスワード登録"
+echo "      logout.js                  # ログアウト"
+echo "      me.js                      # 認証状態確認"
 echo ""
 echo "To deploy:"
 echo "  npx wrangler pages deploy dist"
