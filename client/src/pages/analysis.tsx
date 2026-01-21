@@ -69,11 +69,20 @@ export default function Analysis() {
           const response = await fetch(`/api/workouts?id=${params.id}`);
           if (response.ok) {
             const result = await response.json();
+            console.log('Fetched workout data:', result);
+            
             if (result.workout && result.aiAnalysis) {
-              setData({
-                workout: result.workout.workout_data || result.workout,
-                aiAnalysis: result.aiAnalysis,
-              });
+              // workout_data is already parsed in the API response
+              const workoutData = result.workout.workout_data;
+              
+              if (workoutData) {
+                setData({
+                  workout: workoutData,
+                  aiAnalysis: result.aiAnalysis,
+                });
+              } else {
+                setError("ワークアウトデータが見つかりません");
+              }
             } else {
               setError("ワークアウトデータが見つかりません");
             }
@@ -81,6 +90,7 @@ export default function Analysis() {
             setError("データの取得に失敗しました");
           }
         } catch (e) {
+          console.error('Load data error:', e);
           setError("データの取得中にエラーが発生しました");
         }
       } else {
@@ -90,7 +100,7 @@ export default function Analysis() {
             const parsed = JSON.parse(stored);
             setData(parsed);
           } catch (e) {
-            console.error("Failed to parse analysis result");
+            console.error("Failed to parse analysis result", e);
           }
         }
       }
