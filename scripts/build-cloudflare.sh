@@ -81,6 +81,18 @@ npx esbuild functions-src/api/workouts.ts \
   --outfile=dist/functions/api/workouts.js \
   --minify
 
+# Create _routes.json for Cloudflare Pages routing
+echo "Creating _routes.json..."
+cat > dist/_routes.json << 'ROUTES_EOF'
+{
+  "version": 1,
+  "include": [
+    "/api/*"
+  ],
+  "exclude": []
+}
+ROUTES_EOF
+
 echo ""
 echo "Build complete! Output in ./dist"
 echo ""
