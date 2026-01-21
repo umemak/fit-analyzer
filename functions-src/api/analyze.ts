@@ -3,6 +3,80 @@ import OpenAI from "openai";
 
 interface Env {
   OPENAI_API_KEY: string;
+  DB: D1Database;
+}
+
+function getCookie(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';');
+  for (const cookie of cookies) {
+    const [key, value] = cookie.trim().split('=');
+    if (key === name) return value;
+  }
+  return null;
+}
+
+async function getUser(context: EventContext<Env, string, unknown>): Promise<{ id: string } | null> {
+  const sessionId = getCookie(context.request.headers.get('Cookie'), 'session');
+  if (!sessionId) return null;
+
+  try {
+    const session = await context.env.DB.prepare(
+      'SELECT user_id FROM sessions WHERE id = ? AND expires_at > datetime("now")'
+    ).bind(sessionId).first<{ user_id: string }>();
+    return session ? { id: session.user_id } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveWorkout(
+  context: EventContext<Env, string, unknown>,
+  userId: string,
+  workoutData: WorkoutData,
+  aiAnalysis: AIAnalysis
+): Promise<void> {
+  const workoutId = workoutData.id;
+  
+  await context.env.DB.prepare(
+    `INSERT INTO workouts (id, user_id, file_name, sport, start_time, total_distance, total_time, 
+     avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, workout_data)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    workoutId,
+    userId,
+    workoutData.fileName,
+    workoutData.summary.sport,
+    workoutData.summary.startTime,
+    workoutData.summary.totalDistance,
+    Math.round(workoutData.summary.totalElapsedTime),
+    workoutData.summary.avgHeartRate || null,
+    workoutData.summary.maxHeartRate || null,
+    workoutData.summary.avgSpeed ? (1000 / workoutData.summary.avgSpeed / 60) : null,
+    workoutData.summary.totalCalories || null,
+    workoutData.summary.totalAscent || null,
+    workoutData.summary.totalDescent || null,
+    workoutData.summary.avgPower || null,
+    JSON.stringify(workoutData)
+  ).run();
+
+  await context.env.DB.prepare(
+    `INSERT INTO ai_analyses (id, workout_id, overall_score, summary, strengths, improvements, recommendations, detailed_analysis)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    crypto.randomUUID(),
+    workoutId,
+    aiAnalysis.overallScore,
+    aiAnalysis.performanceSummary,
+    JSON.stringify(aiAnalysis.strengths),
+    JSON.stringify(aiAnalysis.areasForImprovement),
+    JSON.stringify(aiAnalysis.trainingRecommendations),
+    JSON.stringify({
+      heartRateAnalysis: aiAnalysis.heartRateAnalysis,
+      paceAnalysis: aiAnalysis.paceAnalysis,
+      recoveryAdvice: aiAnalysis.recoveryAdvice,
+    })
+  ).run();
 }
 
 interface WorkoutSummary {
@@ -414,9 +488,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       };
     }
 
+    let saved = false;
+    const user = await getUser(context);
+    if (user && context.env.DB) {
+      try {
+        await saveWorkout(context, user.id, workoutData, aiAnalysis);
+        saved = true;
+      } catch (saveError) {
+        console.error("Save workout error:", saveError);
+      }
+    }
+
     return new Response(JSON.stringify({
       workout: workoutData,
       aiAnalysis,
+      saved,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

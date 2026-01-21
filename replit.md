@@ -56,13 +56,20 @@ npm run dev    # Start development server
 ```
 
 ## Cloudflare Pages Deployment
-Cloudflare Pagesへのデプロイに対応しています。
+Cloudflare Pagesへのデプロイに対応しています。OAuth認証とD1データベースによる履歴保存をサポート。
 
 ### ファイル構成
 ```
 functions-src/
   api/
-    analyze.ts         # Cloudflare Pages Function (ソース)
+    analyze.ts         # FIT解析API
+    workouts.ts        # 履歴API
+    auth/
+      github.ts        # GitHub OAuth
+      google.ts        # Google OAuth
+      logout.ts        # ログアウト
+      me.ts            # 認証状態確認
+d1-schema.sql          # D1データベーススキーマ
 scripts/
   build-cloudflare.sh  # ビルドスクリプト
 wrangler.toml          # Cloudflare設定
@@ -72,6 +79,10 @@ CLOUDFLARE_DEPLOY.md   # デプロイ手順
 
 ### デプロイコマンド
 ```bash
+# D1データベース作成
+npx wrangler d1 create fit-analyzer-db
+npx wrangler d1 execute fit-analyzer-db --file=d1-schema.sql
+
 # ビルド
 bash scripts/build-cloudflare.sh
 
@@ -81,6 +92,11 @@ npx wrangler pages deploy dist
 
 ### 環境変数（Cloudflare Dashboard）
 - `OPENAI_API_KEY` - OpenAI APIキー
+- `GITHUB_CLIENT_ID` - GitHub OAuth Client ID
+- `GITHUB_CLIENT_SECRET` - GitHub OAuth Client Secret
+- `GOOGLE_CLIENT_ID` - Google OAuth Client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth Client Secret
+- `APP_URL` - アプリURL（例: https://fit-analyzer.pages.dev）
 
 ## Recent Changes
 - Initial implementation with FIT file parsing and AI analysis

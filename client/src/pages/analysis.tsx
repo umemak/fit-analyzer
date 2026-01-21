@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { 
   Activity, 
   Clock, 
@@ -57,21 +57,47 @@ function getSportLabel(sport: string): string {
 
 export default function Analysis() {
   const [, setLocation] = useLocation();
+  const params = useParams<{ id?: string }>();
   const [data, setData] = useState<AnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("analysisResult");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setData(parsed);
-      } catch (e) {
-        console.error("Failed to parse analysis result");
+    async function loadData() {
+      if (params.id) {
+        try {
+          const response = await fetch(`/api/workouts?id=${params.id}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.workout && result.aiAnalysis) {
+              setData({
+                workout: result.workout.workout_data || result.workout,
+                aiAnalysis: result.aiAnalysis,
+              });
+            } else {
+              setError("ワークアウトデータが見つかりません");
+            }
+          } else {
+            setError("データの取得に失敗しました");
+          }
+        } catch (e) {
+          setError("データの取得中にエラーが発生しました");
+        }
+      } else {
+        const stored = sessionStorage.getItem("analysisResult");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            setData(parsed);
+          } catch (e) {
+            console.error("Failed to parse analysis result");
+          }
+        }
       }
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  }, []);
+    loadData();
+  }, [params.id]);
 
   if (isLoading) {
     return (
@@ -90,12 +116,12 @@ export default function Analysis() {
     );
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">解析データがありません</h2>
+          <h2 className="text-xl font-semibold mb-2">{error || "解析データがありません"}</h2>
           <p className="text-muted-foreground mb-4">FITファイルをアップロードしてください</p>
           <Button onClick={() => setLocation("/")} data-testid="button-back-home">
             <ArrowLeft className="h-4 w-4 mr-2" />

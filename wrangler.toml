@@ -10,6 +10,19 @@ pages_build_output_dir = "dist"
 [build]
 command = "npm install && bash scripts/build-cloudflare.sh"
 
+# D1 Database binding
+# Create database with: npx wrangler d1 create fit-analyzer-db
+# Then update the database_id below
+[[d1_databases]]
+binding = "DB"
+database_name = "fit-analyzer-db"
+database_id = "YOUR_DATABASE_ID_HERE"
+
 # Environment variables (set these in Cloudflare Dashboard)
 # [vars]
 # OPENAI_API_KEY = ""
+# GITHUB_CLIENT_ID = ""
+# GITHUB_CLIENT_SECRET = ""
+# GOOGLE_CLIENT_ID = ""
+# GOOGLE_CLIENT_SECRET = ""
+# APP_URL = "https://your-app.pages.dev"

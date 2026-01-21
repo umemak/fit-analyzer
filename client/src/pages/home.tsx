@@ -4,13 +4,16 @@ import { useLocation } from "wouter";
 import { Activity, BarChart3, Sparkles, Clock, Heart, MapPin } from "lucide-react";
 import { FileUpload } from "@/components/file-upload";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthButtons } from "@/components/auth-buttons";
 import { Card } from "@/components/ui/card";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string>();
+  const { user } = useAuth();
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -78,7 +81,10 @@ export default function Home() {
             </div>
             <span className="font-semibold text-lg">FIT Analyzer</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <AuthButtons />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
