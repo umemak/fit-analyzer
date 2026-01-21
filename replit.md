@@ -106,3 +106,4 @@ npx wrangler pages deploy dist
 - Japanese language UI
 - Added Cloudflare Pages deployment support
 - Added PWA support (manifest.json, Service Worker, app icons)
+- Added email/password authentication (register, login with PBKDF2 password hashing)

@@ -56,6 +56,22 @@ npx esbuild functions-src/api/auth/me.ts \
   --outfile=dist/functions/api/auth/me.js \
   --minify
 
+npx esbuild functions-src/api/auth/register.ts \
+  --bundle \
+  --platform=neutral \
+  --target=es2022 \
+  --format=esm \
+  --outfile=dist/functions/api/auth/register.js \
+  --minify
+
+npx esbuild functions-src/api/auth/login.ts \
+  --bundle \
+  --platform=neutral \
+  --target=es2022 \
+  --format=esm \
+  --outfile=dist/functions/api/auth/login.js \
+  --minify
+
 # Bundle workouts function
 npx esbuild functions-src/api/workouts.ts \
   --bundle \
@@ -78,6 +94,8 @@ echo "      workouts.js                # 履歴API"
 echo "      auth/"
 echo "        github.js                # GitHub OAuth"
 echo "        google.js                # Google OAuth"
+echo "        login.js                 # メール/パスワードログイン"
+echo "        register.js              # メール/パスワード登録"
 echo "        logout.js                # ログアウト"
 echo "        me.js                    # 認証状態確認"
 echo ""
