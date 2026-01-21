@@ -18,9 +18,12 @@ binding = "DB"
 database_name = "fit-analyzer-db"
 database_id = "YOUR_DATABASE_ID_HERE"
 
+# Workers AI binding
+[ai]
+binding = "AI"
+
 # Environment variables (set these in Cloudflare Dashboard)
 # [vars]
-# OPENAI_API_KEY = ""
 # GITHUB_CLIENT_ID = ""
 # GITHUB_CLIENT_SECRET = ""
 # GOOGLE_CLIENT_ID = ""
