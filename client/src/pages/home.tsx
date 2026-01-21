@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Activity, BarChart3, Sparkles, Clock, Heart, MapPin } from "lucide-react";
@@ -14,6 +14,38 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string>();
   const { user } = useAuth();
+
+  // Check for shared file on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('shared') === 'true') {
+      // Remove the query parameter
+      window.history.replaceState({}, '', '/');
+      
+      // Retrieve shared file from cache
+      (async () => {
+        try {
+          const cache = await caches.open('fit-analyzer-v2');
+          const response = await cache.match('/shared-file');
+          
+          if (response) {
+            const blob = await response.blob();
+            const fileName = response.headers.get('X-File-Name') || 'shared.fit';
+            const file = new File([blob], fileName, { type: 'application/octet-stream' });
+            
+            // Clean up cache
+            await cache.delete('/shared-file');
+            
+            // Upload the file
+            handleFileSelect(file);
+          }
+        } catch (err) {
+          console.error('Failed to retrieve shared file:', err);
+          setError('共有ファイルの取得に失敗しました');
+        }
+      })();
+    }
+  }, []);
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {

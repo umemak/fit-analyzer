@@ -8,6 +8,7 @@ import { AuthProvider } from "@/lib/auth";
 import Home from "@/pages/home";
 import Analysis from "@/pages/analysis";
 import History from "@/pages/history";
+import Share from "@/pages/share";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/analysis" component={Analysis} />
       <Route path="/analysis/:id" component={Analysis} />
       <Route path="/history" component={History} />
+      <Route path="/share" component={Share} />
       <Route component={NotFound} />
     </Switch>
   );

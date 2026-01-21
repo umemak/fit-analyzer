@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fit-analyzer-v1';
+const CACHE_NAME = 'fit-analyzer-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json'
@@ -29,6 +29,35 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Handle Web Share Target API
+  if (url.pathname === '/share' && request.method === 'POST') {
+    event.respondWith(
+      (async () => {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        
+        if (file) {
+          // Store the file in cache for the app to retrieve
+          const cache = await caches.open(CACHE_NAME);
+          const fileBlob = new Blob([file], { type: 'application/octet-stream' });
+          const fileResponse = new Response(fileBlob, {
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-File-Name': file.name
+            }
+          });
+          await cache.put('/shared-file', fileResponse);
+          
+          // Redirect to home page with a flag
+          return Response.redirect('/?shared=true', 303);
+        }
+        
+        return Response.redirect('/', 303);
+      })()
+    );
+    return;
+  }
 
   if (request.method !== 'GET') {
     return;
