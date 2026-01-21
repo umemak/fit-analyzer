@@ -61,37 +61,43 @@ export default function Analysis() {
   const [data, setData] = useState<AnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
     async function loadData() {
       if (params.id) {
         try {
+          setDebugInfo(`Fetching workout ID: ${params.id}`);
           const response = await fetch(`/api/workouts?id=${params.id}`);
+          setDebugInfo(`Response status: ${response.status}`);
+          
           if (response.ok) {
             const result = await response.json();
-            console.log('Fetched workout data:', result);
+            setDebugInfo(`Result keys: ${Object.keys(result).join(', ')}`);
             
             if (result.workout && result.aiAnalysis) {
-              // workout_data is already parsed in the API response
               const workoutData = result.workout.workout_data;
+              setDebugInfo(`workout_data type: ${typeof workoutData}, has data: ${!!workoutData}`);
               
               if (workoutData) {
+                setDebugInfo(`workout_data keys: ${Object.keys(workoutData).join(', ')}`);
                 setData({
                   workout: workoutData,
                   aiAnalysis: result.aiAnalysis,
                 });
               } else {
-                setError("ワークアウトデータが見つかりません");
+                setError(`ワークアウトデータが見つかりません (workout_data is ${workoutData})`);
               }
             } else {
-              setError("ワークアウトデータが見つかりません");
+              setError(`レスポンス構造エラー: workout=${!!result.workout}, aiAnalysis=${!!result.aiAnalysis}`);
             }
           } else {
-            setError("データの取得に失敗しました");
+            const errorText = await response.text();
+            setError(`データの取得に失敗しました (${response.status}): ${errorText}`);
           }
         } catch (e) {
-          console.error('Load data error:', e);
-          setError("データの取得中にエラーが発生しました");
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          setError(`データの取得中にエラーが発生しました: ${errorMessage}`);
         }
       } else {
         const stored = sessionStorage.getItem("analysisResult");
@@ -100,8 +106,10 @@ export default function Analysis() {
             const parsed = JSON.parse(stored);
             setData(parsed);
           } catch (e) {
-            console.error("Failed to parse analysis result", e);
+            setError("セッションストレージの解析に失敗しました");
           }
+        } else {
+          setError("セッションストレージにデータがありません");
         }
       }
       setIsLoading(false);
@@ -128,10 +136,17 @@ export default function Analysis() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center max-w-2xl">
           <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">{error || "解析データがありません"}</h2>
+          {debugInfo && (
+            <div className="mb-4 p-4 bg-muted rounded-lg text-left">
+              <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                {debugInfo}
+              </p>
+            </div>
+          )}
           <p className="text-muted-foreground mb-4">FITファイルをアップロードしてください</p>
           <Button onClick={() => setLocation("/")} data-testid="button-back-home">
             <ArrowLeft className="h-4 w-4 mr-2" />
