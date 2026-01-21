@@ -32,7 +32,9 @@
 
 | 変数名 | 説明 |
 |-------|------|
-| `OPENAI_API_KEY` | OpenAI APIキー |
+| `OPENAI_API_KEY` | OpenAI APIキー（https://platform.openai.com/api-keys で取得） |
+
+> **注意**: Replitでの開発時は `AI_INTEGRATIONS_OPENAI_API_KEY` を使用していますが、Cloudflareでは標準の `OPENAI_API_KEY` を設定してください。
 
 ### 4. デプロイ
 
@@ -51,15 +53,22 @@ npx wrangler pages dev dist --binding OPENAI_API_KEY=sk-your-key
 ## ファイル構成
 
 ```
-├── functions/
+├── functions-src/          # ソースファイル（開発用）
 │   └── api/
-│       └── analyze.ts     # Cloudflare Pages Function (API)
-├── dist/                   # ビルド出力（フロントエンド）
-├── wrangler.toml          # Cloudflare設定
+│       └── analyze.ts      # Pages Function ソース
+├── dist/                   # ビルド出力（デプロイ対象）
+│   ├── index.html          # フロントエンド
+│   ├── assets/             # フロントエンドアセット
+│   └── functions/api/      # バンドル済みPages Functions
+├── scripts/
+│   └── build-cloudflare.sh # ビルドスクリプト
+├── wrangler.toml           # Cloudflare設定
 └── vite.config.cloudflare.ts  # Cloudflare用Vite設定
 ```
 
 ## 注意事項
+
+- **デプロイされるのはdist/フォルダのみです**。functions-src/はソースファイルで、ビルド時にdist/functions/にバンドルされます。
 
 - Cloudflare Workersの制限：
   - メモリ: 128MB
@@ -77,5 +86,5 @@ Cloudflare Dashboardの **Workers & Pages** > プロジェクト > **Functions**
 
 ローカルで以下を実行してエラーを確認：
 ```bash
-npm run build:cloudflare
+bash scripts/build-cloudflare.sh
 ```

@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 # Pages configuration
 pages_build_output_dir = "dist"
 
+# Build configuration for Functions
+[build]
+command = "npm install && bash scripts/build-cloudflare.sh"
+
 # Environment variables (set these in Cloudflare Dashboard)
 # [vars]
 # OPENAI_API_KEY = ""

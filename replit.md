@@ -60,9 +60,9 @@ Cloudflare Pagesへのデプロイに対応しています。
 
 ### ファイル構成
 ```
-functions/
+functions-src/
   api/
-    analyze.ts         # Cloudflare Pages Function (API)
+    analyze.ts         # Cloudflare Pages Function (ソース)
 scripts/
   build-cloudflare.sh  # ビルドスクリプト
 wrangler.toml          # Cloudflare設定

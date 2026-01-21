@@ -1,6 +1,5 @@
 import FitParser from "fit-file-parser";
 import OpenAI from "openai";
-import { randomUUID } from "crypto";
 
 interface Env {
   OPENAI_API_KEY: string;
@@ -137,7 +136,7 @@ interface FitData {
   device_infos?: FitDeviceInfo[];
 }
 
-async function parseFitFile(buffer: Buffer, fileName: string): Promise<WorkoutData> {
+async function parseFitFile(buffer: ArrayBuffer | Buffer | Uint8Array, fileName: string): Promise<WorkoutData> {
   const fitParser = new FitParser({
     force: true,
     speedUnit: "m/s",
@@ -209,7 +208,7 @@ function transformFitData(data: FitData, fileName: string): WorkoutData {
   }));
 
   return {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     fileName,
     summary,
     laps: transformedLaps,
@@ -383,7 +382,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = typeof Buffer !== 'undefined' 
+      ? Buffer.from(arrayBuffer) 
+      : new Uint8Array(arrayBuffer);
 
     let workoutData: WorkoutData;
     try {
