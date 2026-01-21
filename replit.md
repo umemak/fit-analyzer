@@ -9,6 +9,7 @@ FITファイル（COROS、Garmin、Polar、Suunto等のスポーツウォッチ�
 - **チャート表示**: 心拍数、ペース、標高、パワーの時系列グラフ
 - **ラップ詳細**: 各ラップのタイム、ペース、心拍数を表形式で表示
 - **AI評価**: OpenAIによる10段階評価、強み・改善点・トレーニング推奨事項を生成
+- **PWA対応**: ホーム画面追加、オフラインキャッシュ、アプリライクな体験
 
 ## Tech Stack
 - **Frontend**: React + TypeScript + Vite
@@ -104,3 +105,4 @@ npx wrangler pages deploy dist
 - Dark/light mode toggle
 - Japanese language UI
 - Added Cloudflare Pages deployment support
+- Added PWA support (manifest.json, Service Worker, app icons)
