@@ -187,6 +187,10 @@ export default function Analysis() {
   const { workout, aiAnalysis } = data;
   const { summary, laps, records } = workout;
 
+  // Debug: Check if GPS data exists
+  const gpsRecordsCount = records?.filter(r => r.latitude && r.longitude).length || 0;
+  console.log('Total records:', records?.length, 'GPS records:', gpsRecordsCount);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -302,7 +306,7 @@ export default function Analysis() {
             )}
           </div>
 
-          <RouteMap records={records} />
+          {records && records.length > 0 && <RouteMap records={records} />}
 
           <div className="grid lg:grid-cols-2 gap-6">
             <WorkoutCharts records={records} />
