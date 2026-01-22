@@ -17,6 +17,7 @@ import { MetricCard } from "@/components/metric-card";
 import { WorkoutCharts } from "@/components/workout-charts";
 import { AIAnalysisPanel } from "@/components/ai-analysis-panel";
 import { LapTable } from "@/components/lap-table";
+import { RouteMap } from "@/components/route-map";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -300,6 +301,8 @@ export default function Analysis() {
               />
             )}
           </div>
+
+          <RouteMap records={records} />
 
           <div className="grid lg:grid-cols-2 gap-6">
             <WorkoutCharts records={records} />
