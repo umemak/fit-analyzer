@@ -8,7 +8,7 @@ binding = "DB"
 database_name = "fit-analyzer-db"
 database_id = "d63d86b2-a801-46ef-9839-a14c8eaf053a"
 
-[[ai]]
+[ai]
 binding = "AI"
 
 [[r2_buckets]]
