@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polyline, Marker, Popup, CircleMarker } from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, CircleMarker } from "react-leaflet";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, Mountain } from "lucide-react";
@@ -137,18 +137,7 @@ export function RouteMap({ records }: RouteMapProps) {
               color: "#ffffff",
               weight: 2,
             }}
-          >
-            <Popup>
-              <div className="text-center">
-                <p className="font-semibold text-green-600">スタート</p>
-                {gpsRecords[0].altitude && (
-                  <p className="text-xs text-muted-foreground">
-                    標高: {Math.round(gpsRecords[0].altitude)}m
-                  </p>
-                )}
-              </div>
-            </Popup>
-          </CircleMarker>
+          />
 
           {/* End marker */}
           <CircleMarker
@@ -160,23 +149,7 @@ export function RouteMap({ records }: RouteMapProps) {
               color: "#ffffff",
               weight: 2,
             }}
-          >
-            <Popup>
-              <div className="text-center">
-                <p className="font-semibold text-red-600">ゴール</p>
-                {gpsRecords[gpsRecords.length - 1].altitude && (
-                  <p className="text-xs text-muted-foreground">
-                    標高: {Math.round(gpsRecords[gpsRecords.length - 1].altitude)}m
-                  </p>
-                )}
-                {totalDistance > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    距離: {(totalDistance / 1000).toFixed(2)}km
-                  </p>
-                )}
-              </div>
-            </Popup>
-          </CircleMarker>
+          />
         </MapContainer>
       </div>
 
