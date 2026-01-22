@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet"
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, Mountain } from "lucide-react";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLngExpression } from "leaflet";
 
@@ -22,8 +23,7 @@ interface RouteMapProps {
 
 // Fix for default marker icons in Leaflet with React
 if (typeof window !== 'undefined') {
-  const L = require('leaflet');
-  delete L.Icon.Default.prototype._getIconUrl;
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
