@@ -47,9 +47,17 @@ export async function registerRoutes(
       let aiAnalysis;
       try {
         aiAnalysis = await analyzeWorkout(workoutData);
-      } catch (aiError) {
+      } catch (aiError: any) {
         console.error("AI analysis error:", aiError);
-        // Return workout data without AI analysis if AI fails
+        
+        // Check if it's a quota/rate limit error
+        const errorMessage = aiError?.message || '';
+        if (errorMessage.includes('クォーター') || errorMessage.includes('レート制限') || errorMessage.includes('リクエスト制限')) {
+          // Return error to user for quota/rate limit issues
+          return res.status(429).json({ error: errorMessage });
+        }
+        
+        // For other errors, return workout data without AI analysis
         aiAnalysis = {
           overallScore: 7,
           performanceSummary: "AIによる分析が一時的に利用できません。ワークアウトデータは正常に解析されました。",

@@ -32,6 +32,8 @@ export async function analyzeWorkout(workout: WorkoutData): Promise<AIAnalysis> 
   const heartRateVariation = calculateHeartRateVariation(records);
   const paceConsistency = calculatePaceConsistency(laps);
   
+  console.log(`[AI Analyzer] Starting analysis for ${summary.sport} workout with ${laps.length} laps`);
+  
   const prompt = `あなたはプロのランニング・トライアスロンコーチです。以下のワークアウトデータを分析し、日本語で詳細な評価を提供してください。
 
 ## ワークアウト概要
@@ -67,21 +69,41 @@ ${laps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(
   "recoveryAdvice": "(このワークアウト後の回復アドバイス)"
 }`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    response_format: { type: "json_object" },
-    max_completion_tokens: 2048,
-  });
+  let response;
+  try {
+    response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 2048,
+    });
+  } catch (error: any) {
+    console.error("[AI Analyzer] OpenAI API error:", error);
+    
+    // Check for rate limit / quota errors
+    if (error?.status === 429 || error?.code === 'rate_limit_exceeded' || error?.code === 'insufficient_quota') {
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('quota')) {
+        throw new Error('AI分析のクォーター（利用枠）制限に達しました。しばらくしてから再度お試しください。');
+      } else if (errorMessage.includes('rate limit')) {
+        throw new Error('AI分析のレート制限に達しました。しばらくしてから再度お試しください。');
+      } else {
+        throw new Error('AI分析のリクエスト制限に達しました。しばらくしてから再度お試しください。');
+      }
+    }
+    
+    // Re-throw other errors
+    throw error;
+  }
 
   const content = response.choices[0]?.message?.content;
   if (!content) {
