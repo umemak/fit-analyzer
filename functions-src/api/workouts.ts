@@ -91,11 +91,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         },
         aiAnalysis: aiAnalysis ? {
           overallScore: aiAnalysis.overall_score,
-          summary: aiAnalysis.summary,
+          performanceSummary: aiAnalysis.summary,
           strengths: aiAnalysis.strengths ? JSON.parse(aiAnalysis.strengths) : [],
-          improvements: aiAnalysis.improvements ? JSON.parse(aiAnalysis.improvements) : [],
-          recommendations: aiAnalysis.recommendations ? JSON.parse(aiAnalysis.recommendations) : [],
-          detailedAnalysis: aiAnalysis.detailed_analysis,
+          areasForImprovement: aiAnalysis.improvements ? JSON.parse(aiAnalysis.improvements) : [],
+          trainingRecommendations: aiAnalysis.recommendations ? JSON.parse(aiAnalysis.recommendations) : [],
+          heartRateAnalysis: aiAnalysis.detailed_analysis ? JSON.parse(aiAnalysis.detailed_analysis).heartRateAnalysis : undefined,
+          paceAnalysis: aiAnalysis.detailed_analysis ? JSON.parse(aiAnalysis.detailed_analysis).paceAnalysis : undefined,
+          recoveryAdvice: aiAnalysis.detailed_analysis ? JSON.parse(aiAnalysis.detailed_analysis).recoveryAdvice : undefined,
         } : null,
       }), {
         status: 200,
