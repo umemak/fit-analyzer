@@ -48,7 +48,7 @@ ${summary.avgCadence ? `- 平均ケイデンス: ${Math.round(summary.avgCadence
 ${summary.avgPower ? `- 平均パワー: ${Math.round(summary.avgPower)} W` : ''}
 
 ## ラップ情報
-${laps.slice(0, 10).map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(2)}km, ${formatDuration(lap.totalElapsedTime)}, ペース ${formatPace(lap.avgSpeed)}${lap.avgHeartRate ? `, HR ${Math.round(lap.avgHeartRate)}` : ''}`).join('\n')}
+${laps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(2)}km, ${formatDuration(lap.totalElapsedTime)}, ペース ${formatPace(lap.avgSpeed)}${lap.avgHeartRate ? `, HR ${Math.round(lap.avgHeartRate)}` : ''}`).join('\n')}
 
 ## 追加分析
 - 心拍数変動: ${heartRateVariation}
