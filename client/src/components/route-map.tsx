@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, Marker, Popup, CircleMarker } from "react-leaflet";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, Mountain } from "lucide-react";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLngExpression } from "leaflet";
-
-// Import marker images
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 interface WorkoutRecord {
   timestamp: string;
@@ -25,14 +19,6 @@ interface WorkoutRecord {
 interface RouteMapProps {
   records: WorkoutRecord[];
 }
-
-// Fix for default marker icons in Leaflet with React
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
 
 export function RouteMap({ records }: RouteMapProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -142,7 +128,16 @@ export function RouteMap({ records }: RouteMapProps) {
           />
 
           {/* Start marker */}
-          <Marker position={startPosition}>
+          <CircleMarker
+            center={startPosition}
+            radius={8}
+            pathOptions={{
+              fillColor: "#22c55e",
+              fillOpacity: 1,
+              color: "#ffffff",
+              weight: 2,
+            }}
+          >
             <Popup>
               <div className="text-center">
                 <p className="font-semibold text-green-600">スタート</p>
@@ -153,10 +148,19 @@ export function RouteMap({ records }: RouteMapProps) {
                 )}
               </div>
             </Popup>
-          </Marker>
+          </CircleMarker>
 
           {/* End marker */}
-          <Marker position={endPosition}>
+          <CircleMarker
+            center={endPosition}
+            radius={8}
+            pathOptions={{
+              fillColor: "#ef4444",
+              fillOpacity: 1,
+              color: "#ffffff",
+              weight: 2,
+            }}
+          >
             <Popup>
               <div className="text-center">
                 <p className="font-semibold text-red-600">ゴール</p>
@@ -172,7 +176,7 @@ export function RouteMap({ records }: RouteMapProps) {
                 )}
               </div>
             </Popup>
-          </Marker>
+          </CircleMarker>
         </MapContainer>
       </div>
 
