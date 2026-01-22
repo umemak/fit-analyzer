@@ -88,21 +88,39 @@ ${laps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(
     });
   } catch (error: any) {
     console.error("[AI Analyzer] OpenAI API error:", error);
+    console.error("[AI Analyzer] Error details - status:", error?.status, "code:", error?.code, "type:", error?.type);
+    console.error("[AI Analyzer] Error message:", error?.message);
     
-    // Check for rate limit / quota errors
-    if (error?.status === 429 || error?.code === 'rate_limit_exceeded' || error?.code === 'insufficient_quota') {
-      const errorMessage = error?.message || '';
-      if (errorMessage.includes('quota')) {
+    // Extract error message from various possible locations
+    const errorMessage = error?.message || error?.error?.message || '';
+    const errorCode = error?.code || error?.error?.code || '';
+    const errorType = error?.type || error?.error?.type || '';
+    const statusCode = error?.status || error?.statusCode || error?.response?.status;
+    
+    // Check for quota/rate limit errors (case-insensitive)
+    const lowerMessage = errorMessage.toLowerCase();
+    const lowerCode = errorCode.toLowerCase();
+    const lowerType = errorType.toLowerCase();
+    
+    if (
+      statusCode === 429 || 
+      lowerCode.includes('rate_limit') || 
+      lowerCode.includes('quota') ||
+      lowerType.includes('quota') ||
+      lowerMessage.includes('quota') || 
+      lowerMessage.includes('rate limit')
+    ) {
+      if (lowerMessage.includes('quota') || lowerCode.includes('quota') || lowerType.includes('quota')) {
         throw new Error('AI分析のクォーター（利用枠）制限に達しました。しばらくしてから再度お試しください。');
-      } else if (errorMessage.includes('rate limit')) {
+      } else if (lowerMessage.includes('rate limit') || lowerCode.includes('rate_limit')) {
         throw new Error('AI分析のレート制限に達しました。しばらくしてから再度お試しください。');
       } else {
         throw new Error('AI分析のリクエスト制限に達しました。しばらくしてから再度お試しください。');
       }
     }
     
-    // Re-throw other errors
-    throw error;
+    // For other errors, throw a generic message but log the original
+    throw new Error(`AI分析中にエラーが発生しました: ${errorMessage || '不明なエラー'}`);
   }
 
   const content = response.choices[0]?.message?.content;

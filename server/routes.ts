@@ -48,11 +48,16 @@ export async function registerRoutes(
       try {
         aiAnalysis = await analyzeWorkout(workoutData);
       } catch (aiError: any) {
-        console.error("AI analysis error:", aiError);
+        console.error("AI analysis error in routes:", aiError);
         
-        // Check if it's a quota/rate limit error
+        // Check if it's a quota/rate limit error (check for Japanese keywords or "AI分析" prefix)
         const errorMessage = aiError?.message || '';
-        if (errorMessage.includes('クォーター') || errorMessage.includes('レート制限') || errorMessage.includes('リクエスト制限')) {
+        if (
+          errorMessage.includes('クォーター') || 
+          errorMessage.includes('レート制限') || 
+          errorMessage.includes('リクエスト制限') ||
+          errorMessage.startsWith('AI分析')
+        ) {
           // Return error to user for quota/rate limit issues
           return res.status(429).json({ error: errorMessage });
         }
