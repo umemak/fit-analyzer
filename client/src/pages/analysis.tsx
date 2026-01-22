@@ -66,11 +66,12 @@ export default function Analysis() {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    let completed = false;
     
     async function loadData() {
       // Set a timeout to catch hanging requests
       timeoutId = setTimeout(() => {
-        if (isLoading) {
+        if (!completed) {
           setError("データの読み込みがタイムアウトしました");
           setIsLoading(false);
         }
@@ -96,6 +97,8 @@ export default function Analysis() {
                   workout: workoutData,
                   aiAnalysis: result.aiAnalysis,
                 });
+                completed = true;
+                clearTimeout(timeoutId);
               } else {
                 setError(`ワークアウトデータが見つかりません (workout_data is ${workoutData})`);
               }
@@ -116,6 +119,8 @@ export default function Analysis() {
           try {
             const parsed = JSON.parse(stored);
             setData(parsed);
+            completed = true;
+            clearTimeout(timeoutId);
           } catch (e) {
             setError("セッションストレージの解析に失敗しました");
           }
