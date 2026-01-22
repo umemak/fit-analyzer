@@ -352,6 +352,11 @@ function calculatePaceConsistency(laps: Lap[]): string {
 async function analyzeWorkout(workout: WorkoutData, ai: Ai): Promise<AIAnalysis> {
   const { summary, laps, records } = workout;
   
+  // Limit data sent to AI to avoid quota issues
+  const maxLaps = 10;
+  const limitedLaps = laps.slice(0, maxLaps);
+  
+  // Calculate statistics without sending all records
   const heartRateVariation = calculateHeartRateVariation(records);
   const paceConsistency = calculatePaceConsistency(laps);
   
@@ -370,30 +375,31 @@ ${summary.totalAscent ? `- 獲得標高: ${Math.round(summary.totalAscent)} m` :
 ${summary.avgCadence ? `- 平均ケイデンス: ${Math.round(summary.avgCadence)} spm` : ''}
 ${summary.avgPower ? `- 平均パワー: ${Math.round(summary.avgPower)} W` : ''}
 
-## ラップ情報
-${laps.slice(0, 10).map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(2)}km, ${formatDuration(lap.totalElapsedTime)}, ペース ${formatPace(lap.avgSpeed)}${lap.avgHeartRate ? `, HR ${Math.round(lap.avgHeartRate)}` : ''}`).join('\n')}
+## ラップ情報（最初の${maxLaps}ラップ）
+${limitedLaps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(2)}km, ${formatDuration(lap.totalElapsedTime)}, ペース ${formatPace(lap.avgSpeed)}${lap.avgHeartRate ? `, HR ${Math.round(lap.avgHeartRate)}` : ''}`).join('\n')}
+${laps.length > maxLaps ? `\n（全${laps.length}ラップ中、${maxLaps}ラップを表示）` : ''}
 
 ## 追加分析
 - 心拍数変動: ${heartRateVariation}
 - ペース一貫性: ${paceConsistency}
 
-以下のJSON形式で回答してください。各フィールドは具体的で実用的なアドバイスを含めてください:
+以下のJSON形式で簡潔に回答してください:
 
 {
-  "overallScore": (1-10の整数、ワークアウトの総合評価),
-  "performanceSummary": "(100-150文字程度でワークアウト全体の評価を要約)",
-  "strengths": ["(強みを3つ挙げてください)"],
-  "areasForImprovement": ["(改善点を2-3つ挙げてください)"],
-  "trainingRecommendations": ["(次回のトレーニングに向けた具体的なアドバイスを3つ)"],
-  "heartRateAnalysis": "(心拍数データがある場合、心拍ゾーンと効率性について分析)",
-  "paceAnalysis": "(ペースの安定性と戦略について分析)",
-  "recoveryAdvice": "(このワークアウト後の回復アドバイス)"
+  "overallScore": (1-10の整数),
+  "performanceSummary": "(80-100文字で要約)",
+  "strengths": ["強み1", "強み2", "強み3"],
+  "areasForImprovement": ["改善点1", "改善点2"],
+  "trainingRecommendations": ["推奨1", "推奨2", "推奨3"],
+  "heartRateAnalysis": "(心拍数分析、50文字程度)",
+  "paceAnalysis": "(ペース分析、50文字程度)",
+  "recoveryAdvice": "(回復アドバイス、50文字程度)"
 }`;
 
   const messages = [
     {
       role: "system" as const,
-      content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
+      content: "エンデュランススポーツコーチとして科学的に分析し、JSONで回答してください。",
     },
     {
       role: "user" as const,
@@ -403,7 +409,7 @@ ${laps.slice(0, 10).map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1
 
   const response = await ai.run("@cf/meta/llama-3.1-70b-instruct", {
     messages,
-    max_tokens: 2048,
+    max_tokens: 1024,  // Reduced to avoid quota issues with large files
   }) as { response: string };
 
   const content = response.response;
