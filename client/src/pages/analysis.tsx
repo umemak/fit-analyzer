@@ -311,7 +311,8 @@ export default function Analysis() {
             )}
           </div>
 
-          {records && records.length > 0 && <RouteMap records={records} />}
+          {/* Temporarily disabled RouteMap due to Leaflet issues */}
+          {/* {records && records.length > 0 && <RouteMap records={records} />} */}
 
           <div className="grid lg:grid-cols-2 gap-6">
             <WorkoutCharts records={records} />
