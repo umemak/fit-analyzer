@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS workouts (
   total_descent REAL,
   avg_power INTEGER,
   workout_data TEXT,
+  r2_key TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -60,5 +61,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_workouts_user_id ON workouts(user_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_created_at ON workouts(created_at);
+CREATE INDEX IF NOT EXISTS idx_workouts_r2_key ON workouts(r2_key);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);

@@ -3,6 +3,7 @@ import FitParser from "fit-file-parser";
 interface Env {
   AI: Ai;
   DB: D1Database;
+  WORKOUT_DATA: R2Bucket;
 }
 
 function getCookie(cookieHeader: string | null, name: string): string | null {
@@ -37,9 +38,33 @@ async function saveWorkout(
 ): Promise<void> {
   const workoutId = workoutData.id;
   
+  // Save full workout data to R2
+  const r2Key = `workouts/${userId}/${workoutId}.json`;
+  try {
+    await context.env.WORKOUT_DATA.put(
+      r2Key,
+      JSON.stringify(workoutData),
+      {
+        httpMetadata: {
+          contentType: 'application/json',
+        },
+        customMetadata: {
+          userId,
+          workoutId,
+          sport: workoutData.summary.sport,
+          startTime: workoutData.summary.startTime,
+        },
+      }
+    );
+  } catch (r2Error) {
+    console.error('R2 save error:', r2Error);
+    // Continue even if R2 fails - metadata will still be saved to D1
+  }
+  
+  // Save metadata to D1 (without full workout_data)
   await context.env.DB.prepare(
     `INSERT INTO workouts (id, user_id, file_name, sport, start_time, total_distance, total_time, 
-     avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, workout_data)
+     avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, r2_key)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     workoutId,
@@ -56,7 +81,7 @@ async function saveWorkout(
     workoutData.summary.totalAscent || null,
     workoutData.summary.totalDescent || null,
     workoutData.summary.avgPower || null,
-    JSON.stringify(workoutData)
+    r2Key
   ).run();
 
   await context.env.DB.prepare(

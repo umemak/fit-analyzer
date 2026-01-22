@@ -1,0 +1,16 @@
+name = "fit-analyzer"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fit-analyzer-db"
+database_id = "d63d86b2-a801-46ef-9839-a14c8eaf053a"
+
+[[ai]]
+binding = "AI"
+
+[[r2_buckets]]
+binding = "WORKOUT_DATA"
+bucket_name = "fit-analyzer-workout-data"

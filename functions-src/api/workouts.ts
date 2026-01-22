@@ -1,5 +1,6 @@
 interface Env {
   DB: D1Database;
+  WORKOUT_DATA: R2Bucket;
 }
 
 interface WorkoutRow {
@@ -18,6 +19,7 @@ interface WorkoutRow {
   total_descent: number | null;
   avg_power: number | null;
   workout_data: string | null;
+  r2_key: string | null;
   created_at: string;
 }
 
@@ -80,6 +82,27 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         });
       }
 
+      // Try to fetch workout data from R2 first, fallback to D1
+      let workoutData = null;
+      if (workout.r2_key) {
+        try {
+          const r2Object = await context.env.WORKOUT_DATA.get(workout.r2_key);
+          if (r2Object) {
+            const r2Text = await r2Object.text();
+            workoutData = JSON.parse(r2Text);
+          }
+        } catch (r2Error) {
+          console.error('R2 fetch error:', r2Error);
+          // Fallback to D1 workout_data if available
+          if (workout.workout_data) {
+            workoutData = JSON.parse(workout.workout_data);
+          }
+        }
+      } else if (workout.workout_data) {
+        // Legacy: use workout_data from D1
+        workoutData = JSON.parse(workout.workout_data);
+      }
+
       const aiAnalysis = await context.env.DB.prepare(
         'SELECT * FROM ai_analyses WHERE workout_id = ?'
       ).bind(workoutId).first<AIAnalysisRow>();
@@ -87,7 +110,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       return new Response(JSON.stringify({
         workout: {
           ...workout,
-          workout_data: workout.workout_data ? JSON.parse(workout.workout_data) : null,
+          workout_data: workoutData,
         },
         aiAnalysis: aiAnalysis ? {
           overallScore: aiAnalysis.overall_score,
@@ -150,6 +173,22 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // Get workout to find R2 key
+    const workout = await context.env.DB.prepare(
+      'SELECT r2_key FROM workouts WHERE id = ? AND user_id = ?'
+    ).bind(workoutId, user.id).first<{ r2_key: string | null }>();
+
+    // Delete from R2 if exists
+    if (workout?.r2_key) {
+      try {
+        await context.env.WORKOUT_DATA.delete(workout.r2_key);
+      } catch (r2Error) {
+        console.error('R2 delete error:', r2Error);
+        // Continue with D1 deletion even if R2 fails
+      }
+    }
+
+    // Delete from D1 (will cascade to ai_analyses)
     await context.env.DB.prepare(
       'DELETE FROM workouts WHERE id = ? AND user_id = ?'
     ).bind(workoutId, user.id).run();
