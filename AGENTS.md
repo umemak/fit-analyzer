@@ -201,6 +201,34 @@ Zodスキーマで型定義：
 
 ### 0. PWA共有機能のデバッグ
 
+**重要: iOS/iPadOSの制限**
+
+iOSはWeb Share Target APIをサポートしていません：
+- ✅ Android: サポート（Chrome, Edge等）
+- ❌ iOS/iPadOS: **未サポート**（Safari含む全ブラウザ）
+
+**iOSでの回避策**:
+
+1. **ファイルアプリ経由**（推奨）
+   - COROSアプリ → 「ファイルに保存」
+   - FIT Analyzer PWAを開く
+   - ファイル選択ダイアログで「ブラウズ」→ ファイルアプリから選択
+
+2. **AirDrop → Safariで開く**
+   - COROSアプリ → AirDrop → 自分のデバイス
+   - Safariで開く → FIT Analyzer にドラッグ&ドロップ
+
+3. **メール/メッセージ経由**
+   - COROSアプリ → メール送信
+   - メールを開く → 添付ファイルをダウンロード
+   - FIT Analyzer でアップロード
+
+4. **Shortcuts アプリ（上級者向け）**
+   - iOSショートカットでHTTP POSTを自動化
+   - FITファイルを直接 `/api/analyze` にアップロード
+
+**Androidでの設定**（Web Share Target API使用可能）:
+
 FITファイルを他のアプリ（COROSアプリ等）から共有できない場合：
 
 **確認項目**:

@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
-import { Upload, FileType, Activity, AlertCircle } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { Upload, FileType, Activity, AlertCircle, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { isIOS } from "@/lib/device-detect";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -13,6 +14,11 @@ interface FileUploadProps {
 
 export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+
+  useEffect(() => {
+    setIsIOSDevice(isIOS());
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -61,11 +67,12 @@ export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }:
         <input
           id="file-input"
           type="file"
-          accept=".fit"
+          accept=".fit,application/octet-stream"
           className="hidden"
           onChange={handleFileInput}
           disabled={isUploading}
           data-testid="input-file"
+          multiple={false}
         />
 
         {isUploading ? (
@@ -81,9 +88,11 @@ export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }:
               <Upload className="h-10 w-10 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-lg font-semibold">FITファイルをドラッグ＆ドロップ</p>
+              <p className="text-lg font-semibold">
+                {isIOSDevice ? 'FITファイルを選択' : 'FITファイルをドラッグ＆ドロップ'}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
-                または、クリックしてファイルを選択
+                {isIOSDevice ? 'ファイルアプリ、iCloud Drive、AirDropから' : 'または、クリックしてファイルを選択'}
               </p>
             </div>
             <Button variant="outline" className="mt-2" data-testid="button-select-file">
@@ -96,6 +105,20 @@ export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }:
               <span className="px-2 py-1 bg-muted rounded">Polar</span>
               <span className="px-2 py-1 bg-muted rounded">Suunto</span>
             </div>
+
+            {isIOSDevice && (
+              <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-2 text-sm">
+                <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+                <div className="text-left">
+                  <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">iOSでの使い方</p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>COROSアプリで「ファイルに保存」を選択</li>
+                    <li>上の「ファイルを選択」をタップ</li>
+                    <li>「ブラウズ」→ ファイルアプリから.fitファイルを選択</li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
