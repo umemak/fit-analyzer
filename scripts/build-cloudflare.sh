@@ -88,13 +88,23 @@ npx esbuild functions-src/api/workouts.ts \
   --outfile=dist/functions/api/workouts.js \
   --minify
 
+# Bundle share function (Web Share Target API)
+npx esbuild functions-src/share.ts \
+  --bundle \
+  --platform=neutral \
+  --target=es2022 \
+  --format=esm \
+  --outfile=dist/functions/share.js \
+  --minify
+
 # Create _routes.json for Cloudflare Pages routing
 echo "Creating _routes.json..."
 cat > dist/_routes.json << 'ROUTES_EOF'
 {
   "version": 1,
   "include": [
-    "/api/*"
+    "/api/*",
+    "/share"
   ],
   "exclude": []
 }
@@ -112,16 +122,18 @@ echo "Structure:"
 echo "  dist/"
 echo "    index.html                   # Frontend"
 echo "    assets/                      # Frontend assets"
-echo "  functions/api/                 # Functions at root (for Cloudflare Pages)"
-echo "    analyze.js                   # FIT解析API"
-echo "    workouts.js                  # 履歴API"
-echo "    auth/"
-echo "      github.js                  # GitHub OAuth"
-echo "      google.js                  # Google OAuth"
-echo "      login.js                   # メール/パスワードログイン"
-echo "      register.js                # メール/パスワード登録"
-echo "      logout.js                  # ログアウト"
-echo "      me.js                      # 認証状態確認"
+echo "  functions/                     # Functions at root (for Cloudflare Pages)"
+echo "    share.js                     # Web Share Target API"
+echo "    api/"
+echo "      analyze.js                 # FIT解析API"
+echo "      workouts.js                # 履歴API"
+echo "      auth/"
+echo "        github.js                # GitHub OAuth"
+echo "        google.js                # Google OAuth"
+echo "        login.js                 # メール/パスワードログイン"
+echo "        register.js              # メール/パスワード登録"
+echo "        logout.js                # ログアウト"
+echo "        me.js                    # 認証状態確認"
 echo ""
 echo "To deploy:"
 echo "  npx wrangler pages deploy dist"

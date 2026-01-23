@@ -32,28 +32,39 @@ self.addEventListener('fetch', (event) => {
 
   // Handle Web Share Target API
   if (url.pathname === '/share' && request.method === 'POST') {
+    console.log('[SW] Share target triggered');
     event.respondWith(
       (async () => {
-        const formData = await request.formData();
-        const file = formData.get('file');
-        
-        if (file) {
-          // Store the file in cache for the app to retrieve
-          const cache = await caches.open(CACHE_NAME);
-          const fileBlob = new Blob([file], { type: 'application/octet-stream' });
-          const fileResponse = new Response(fileBlob, {
-            headers: {
-              'Content-Type': 'application/octet-stream',
-              'X-File-Name': file.name
-            }
-          });
-          await cache.put('/shared-file', fileResponse);
+        try {
+          const formData = await request.formData();
+          console.log('[SW] FormData received:', Array.from(formData.keys()));
           
-          // Redirect to home page with a flag
-          return Response.redirect('/?shared=true', 303);
+          const file = formData.get('file');
+          console.log('[SW] File:', file ? `${file.name} (${file.size} bytes, ${file.type})` : 'No file');
+          
+          if (file) {
+            // Store the file in cache for the app to retrieve
+            const cache = await caches.open(CACHE_NAME);
+            const fileBlob = new Blob([file], { type: 'application/octet-stream' });
+            const fileResponse = new Response(fileBlob, {
+              headers: {
+                'Content-Type': 'application/octet-stream',
+                'X-File-Name': file.name
+              }
+            });
+            await cache.put('/shared-file', fileResponse);
+            console.log('[SW] File cached successfully:', file.name);
+            
+            // Redirect to home page with a flag
+            return Response.redirect('/?shared=true', 303);
+          }
+          
+          console.log('[SW] No file found, redirecting to home');
+          return Response.redirect('/', 303);
+        } catch (error) {
+          console.error('[SW] Error handling share:', error);
+          return Response.redirect('/', 303);
         }
-        
-        return Response.redirect('/', 303);
       })()
     );
     return;

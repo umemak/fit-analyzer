@@ -199,6 +199,33 @@ Zodスキーマで型定義：
 
 ## よくある作業
 
+### 0. PWA共有機能のデバッグ
+
+FITファイルを他のアプリ（COROSアプリ等）から共有できない場合：
+
+**確認項目**:
+```bash
+# 1. manifest.json の share_target 設定を確認
+cat client/public/manifest.json | grep -A 15 "share_target"
+
+# 2. Service Worker が登録されているか（ブラウザDevTools > Application > Service Workers）
+
+# 3. PWAとしてインストールされているか確認
+```
+
+**デバッグ方法**:
+1. ブラウザDevToolsを開く（Chrome: F12）
+2. Console タブを選択
+3. COROSアプリからFITファイルを共有
+4. `[SW] Share target triggered` ログを確認
+5. エラーがあれば確認
+
+**よくある問題**:
+- **PWAが未インストール**: 必ずPWAとしてインストールする
+- **Service Workerが古い**: ブラウザでSW削除 → 再読み込み
+- **MIMEタイプ不一致**: manifest.jsonに `"*/*"` を追加済み
+- **ファイル名に制限**: Service Workerログで確認
+
 ### 1. R2バケットのセットアップ
 
 ```bash

@@ -31,7 +31,12 @@
       "files": [
         {
           "name": "file",
-          "accept": [".fit", "application/octet-stream", "application/vnd.ant.fit"]
+          "accept": [
+            ".fit",
+            "application/octet-stream",
+            "application/vnd.ant.fit",
+            "*/*"
+          ]
         }
       ]
     }

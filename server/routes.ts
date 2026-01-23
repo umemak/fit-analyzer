@@ -22,6 +22,65 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Web Share Target API endpoint
+  app.post("/share", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).send("No file provided");
+      }
+
+      // For development, we can't use Service Worker cache
+      // Store in session or temporary storage
+      // For now, redirect with file data in session storage (client-side)
+      
+      // Return HTML that stores file in sessionStorage and redirects
+      const fileBase64 = req.file.buffer.toString('base64');
+      const fileName = req.file.originalname;
+      
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Processing shared file...</title>
+          <meta charset="utf-8">
+        </head>
+        <body>
+          <p>Processing shared file...</p>
+          <script>
+            (async () => {
+              try {
+                const fileData = '${fileBase64}';
+                const fileName = '${fileName}';
+                
+                // Store in cache API
+                const cache = await caches.open('fit-analyzer-v2');
+                const blob = Uint8Array.from(atob(fileData), c => c.charCodeAt(0));
+                const response = new Response(blob, {
+                  headers: {
+                    'Content-Type': 'application/octet-stream',
+                    'X-File-Name': fileName
+                  }
+                });
+                await cache.put('/shared-file', response);
+                
+                // Redirect to home
+                window.location.href = '/?shared=true';
+              } catch (err) {
+                console.error('Failed to process shared file:', err);
+                alert('ファイルの処理に失敗しました');
+                window.location.href = '/';
+              }
+            })();
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Share error:", error);
+      res.status(500).send("Failed to process shared file");
+    }
+  });
+  
   // FIT file analysis endpoint
   app.post("/api/analyze", upload.single("file"), async (req, res) => {
     try {
