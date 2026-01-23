@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Test - FIT Analyzer</title>
+</head>
+<body>
+  <h1>共有テスト</h1>
+  <p>このページは直接アクセスされるべきではありません。</p>
+  <p>ファイルを共有した場合、自動的にホームページにリダイレクトされます。</p>
+  <script>
+    // このページが直接開かれた場合はホームにリダイレクト
+    if (!document.referrer || window.location.search.indexOf('shared=true') === -1) {
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

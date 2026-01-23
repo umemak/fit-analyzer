@@ -3,6 +3,7 @@
   "short_name": "FIT Analyzer",
   "description": "FITファイルをアップロードして、AIがワークアウトを解析・評価します",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#2563eb",
@@ -31,12 +32,7 @@
       "files": [
         {
           "name": "file",
-          "accept": [
-            ".fit",
-            "application/octet-stream",
-            "application/vnd.ant.fit",
-            "*/*"
-          ]
+          "accept": ["application/octet-stream", ".fit", "application/vnd.ant.fit"]
         }
       ]
     }

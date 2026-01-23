@@ -221,10 +221,17 @@ cat client/public/manifest.json | grep -A 15 "share_target"
 5. エラーがあれば確認
 
 **よくある問題**:
-- **PWAが未インストール**: 必ずPWAとしてインストールする
+- **PWAが未インストール**: 必ずPWAとしてインストールする（ブラウザではなくアプリとして）
+- **共有リストに表示されない**: 
+  1. PWAを一度アンインストール
+  2. ブラウザキャッシュをクリア（DevTools > Application > Clear storage）
+  3. Service Workerを削除（DevTools > Application > Service Workers > Unregister）
+  4. ページをリロード（Ctrl+Shift+R / Cmd+Shift+R）
+  5. PWAを再インストール
+  6. 端末を再起動（Androidの場合、共有リストのキャッシュをクリア）
 - **Service Workerが古い**: ブラウザでSW削除 → 再読み込み
-- **MIMEタイプ不一致**: manifest.jsonに `"*/*"` を追加済み
-- **ファイル名に制限**: Service Workerログで確認
+- **MIMEタイプ不一致**: manifest.jsonで `application/octet-stream` を最初に指定
+- **Androidの共有リストキャッシュ**: 端末を再起動して共有リストを更新
 
 ### 1. R2バケットのセットアップ
 
