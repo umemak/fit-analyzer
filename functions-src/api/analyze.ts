@@ -512,13 +512,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let aiAnalysis: AIAnalysis;
     try {
       aiAnalysis = await analyzeWorkout(workoutData, context.env.AI);
-    } catch (aiError) {
+    } catch (aiError: any) {
       console.error("AI analysis error:", aiError);
+      
+      // Extract error message to provide better feedback
+      const errorMessage = aiError?.message || '';
+      
       aiAnalysis = {
         overallScore: 7,
-        performanceSummary: "AIによる分析が一時的に利用できません。ワークアウトデータは正常に解析されました。",
+        performanceSummary: errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('クォーター') || errorMessage.includes('レート制限')
+          ? "AI分析の利用制限に達しました。ワークアウトデータは正常に記録されています。"
+          : "AIによる分析が一時的に利用できません。ワークアウトデータは正常に解析されました。",
         strengths: ["ワークアウトを完了しました"],
-        areasForImprovement: ["詳細なAI分析は後ほどお試しください"],
+        areasForImprovement: errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('クォーター') || errorMessage.includes('レート制限')
+          ? ["しばらく時間をおいてから、詳細なAI分析をお試しください"]
+          : ["詳細なAI分析は後ほどお試しください"],
         trainingRecommendations: ["継続的なトレーニングを心がけてください"],
         recoveryAdvice: "適切な休息を取り、次のワークアウトに備えてください。",
       };
