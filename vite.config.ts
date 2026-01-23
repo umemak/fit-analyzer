@@ -4,11 +4,18 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { execSync } from "child_process";
 
-// Get git commit hash
+// Get git commit hash from environment variable or git command
 function getGitHash(): string {
+  // First, check if it's provided as environment variable (Cloudflare Pages build)
+  if (process.env.VITE_GIT_HASH) {
+    console.log(`[Vite Config] Using VITE_GIT_HASH from env: ${process.env.VITE_GIT_HASH}`);
+    return process.env.VITE_GIT_HASH;
+  }
+  
+  // Otherwise, try to get it from git
   try {
     const hash = execSync('git rev-parse --short HEAD').toString().trim();
-    console.log(`[Vite Config] Git hash: ${hash}`);
+    console.log(`[Vite Config] Git hash from command: ${hash}`);
     return hash;
   } catch (error) {
     console.warn('[Vite Config] Could not get git hash:', error);

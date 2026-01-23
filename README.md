@@ -6,10 +6,17 @@ AIを使ったワークアウト分析アプリケーション
 
 アプリのフッターに現在動作しているバージョン（git commit hash）が表示されます。
 
-- **本番環境**: `Version: b0ca2d9` (実際のコミットハッシュ)
+- **本番環境**: `Version: cea8d28` (実際のコミットハッシュ)
 - **開発環境**: `Version: dev` (開発中を示す)
 
-本番環境のバージョンは、Cloudflare Pagesのビルド時に埋め込まれます。
+### Cloudflare Pages ビルド設定
+
+Cloudflare Pages Dashboard で以下のビルド設定を行ってください：
+
+1. **Build command**: `npm run build:pages`
+2. **Build output directory**: `dist/public`
+
+これにより、ビルド時にgit commit hashが自動的に埋め込まれます。
 
 ## セットアップ
 
