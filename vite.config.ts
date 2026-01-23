@@ -7,8 +7,11 @@ import { execSync } from "child_process";
 // Get git commit hash
 function getGitHash(): string {
   try {
-    return execSync('git rev-parse --short HEAD').toString().trim();
+    const hash = execSync('git rev-parse --short HEAD').toString().trim();
+    console.log(`[Vite Config] Git hash: ${hash}`);
+    return hash;
   } catch (error) {
+    console.warn('[Vite Config] Could not get git hash:', error);
     return 'dev';
   }
 }
