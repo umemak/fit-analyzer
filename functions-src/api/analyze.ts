@@ -40,49 +40,96 @@ async function saveWorkout(
   
   // Save full workout data to R2
   const r2Key = `workouts/${userId}/${workoutId}.json`;
-  try {
-    await context.env.WORKOUT_DATA.put(
-      r2Key,
-      JSON.stringify(workoutData),
-      {
-        httpMetadata: {
-          contentType: 'application/json',
-        },
-        customMetadata: {
-          userId,
-          workoutId,
-          sport: workoutData.summary.sport,
-          startTime: workoutData.summary.startTime,
-        },
-      }
-    );
-  } catch (r2Error) {
-    console.error('R2 save error:', r2Error);
-    // Continue even if R2 fails - metadata will still be saved to D1
+  let r2Success = false;
+  
+  if (context.env.WORKOUT_DATA) {
+    try {
+      await context.env.WORKOUT_DATA.put(
+        r2Key,
+        JSON.stringify(workoutData),
+        {
+          httpMetadata: {
+            contentType: 'application/json',
+          },
+          customMetadata: {
+            userId,
+            workoutId,
+            sport: workoutData.summary.sport,
+            startTime: workoutData.summary.startTime,
+          },
+        }
+      );
+      r2Success = true;
+      console.log('R2 save successful:', r2Key);
+    } catch (r2Error) {
+      console.error('R2 save error:', r2Error);
+    }
+  } else {
+    console.warn('WORKOUT_DATA R2 bucket is not bound. Skipping R2 save.');
   }
   
-  // Save metadata to D1 (without full workout_data)
-  await context.env.DB.prepare(
-    `INSERT INTO workouts (id, user_id, file_name, sport, start_time, total_distance, total_time, 
-     avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, r2_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    workoutId,
-    userId,
-    workoutData.fileName,
-    workoutData.summary.sport,
-    workoutData.summary.startTime,
-    workoutData.summary.totalDistance,
-    Math.round(workoutData.summary.totalElapsedTime),
-    workoutData.summary.avgHeartRate || null,
-    workoutData.summary.maxHeartRate || null,
-    workoutData.summary.avgSpeed ? (1000 / workoutData.summary.avgSpeed / 60) : null,
-    workoutData.summary.totalCalories || null,
-    workoutData.summary.totalAscent || null,
-    workoutData.summary.totalDescent || null,
-    workoutData.summary.avgPower || null,
-    r2Key
-  ).run();
+  // Save metadata to D1
+  // If R2 succeeded, save with r2_key. Otherwise, skip saving to avoid SQLITE_TOOBIG
+  if (r2Success) {
+    // Try with r2_key column (new schema)
+    try {
+      await context.env.DB.prepare(
+        `INSERT INTO workouts (id, user_id, file_name, sport, start_time, total_distance, total_time, 
+         avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, r2_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        workoutId,
+        userId,
+        workoutData.fileName,
+        workoutData.summary.sport,
+        workoutData.summary.startTime,
+        workoutData.summary.totalDistance,
+        Math.round(workoutData.summary.totalElapsedTime),
+        workoutData.summary.avgHeartRate || null,
+        workoutData.summary.maxHeartRate || null,
+        workoutData.summary.avgSpeed ? (1000 / workoutData.summary.avgSpeed / 60) : null,
+        workoutData.summary.totalCalories || null,
+        workoutData.summary.totalAscent || null,
+        workoutData.summary.totalDescent || null,
+        workoutData.summary.avgPower || null,
+        r2Key
+      ).run();
+      console.log('D1 metadata saved with r2_key');
+    } catch (d1Error: any) {
+      console.error('D1 save error with r2_key:', d1Error);
+      // Fallback: try old schema without r2_key, but with NULL workout_data
+      try {
+        await context.env.DB.prepare(
+          `INSERT INTO workouts (id, user_id, file_name, sport, start_time, total_distance, total_time, 
+           avg_heart_rate, max_heart_rate, avg_pace, total_calories, total_ascent, total_descent, avg_power, workout_data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          workoutId,
+          userId,
+          workoutData.fileName,
+          workoutData.summary.sport,
+          workoutData.summary.startTime,
+          workoutData.summary.totalDistance,
+          Math.round(workoutData.summary.totalElapsedTime),
+          workoutData.summary.avgHeartRate || null,
+          workoutData.summary.maxHeartRate || null,
+          workoutData.summary.avgSpeed ? (1000 / workoutData.summary.avgSpeed / 60) : null,
+          workoutData.summary.totalCalories || null,
+          workoutData.summary.totalAscent || null,
+          workoutData.summary.totalDescent || null,
+          workoutData.summary.avgPower || null,
+          null  // workout_data = NULL, data is in R2
+        ).run();
+        console.log('D1 metadata saved with legacy schema (workout_data=NULL)');
+      } catch (legacyError) {
+        console.error('D1 save error with legacy schema:', legacyError);
+        throw legacyError;  // Re-throw to be caught by outer catch
+      }
+    }
+  } else {
+    console.warn('Skipping D1 save because R2 save failed. Data would be too large for D1.');
+    // Don't save to D1 if R2 failed, to avoid SQLITE_TOOBIG
+  }
 
   await context.env.DB.prepare(
     `INSERT INTO ai_analyses (id, workout_id, overall_score, summary, strengths, improvements, recommendations, detailed_analysis)
