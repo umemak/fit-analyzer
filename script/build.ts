@@ -1,6 +1,17 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import { execSync } from "child_process";
+
+// Get git commit hash
+function getGitHash(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch (error) {
+    console.warn('Could not get git hash:', error);
+    return 'unknown';
+  }
+}
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -35,8 +46,15 @@ const allowlist = [
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
+  const gitHash = getGitHash();
+  console.log(`Git hash: ${gitHash}`);
+
   console.log("building client...");
-  await viteBuild();
+  await viteBuild({
+    define: {
+      'import.meta.env.VITE_GIT_HASH': JSON.stringify(gitHash),
+    },
+  });
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
@@ -54,6 +72,7 @@ async function buildAll() {
     outfile: "dist/index.cjs",
     define: {
       "process.env.NODE_ENV": '"production"',
+      "process.env.GIT_HASH": JSON.stringify(gitHash),
     },
     minify: true,
     external: externals,

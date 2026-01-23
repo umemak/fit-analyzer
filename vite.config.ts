@@ -2,8 +2,21 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { execSync } from "child_process";
+
+// Get git commit hash
+function getGitHash(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch (error) {
+    return 'dev';
+  }
+}
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_GIT_HASH': JSON.stringify(getGitHash()),
+  },
   plugins: [
     react(),
     runtimeErrorOverlay(),

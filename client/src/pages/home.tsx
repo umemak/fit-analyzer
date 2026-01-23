@@ -5,6 +5,7 @@ import { Activity, BarChart3, Sparkles, Clock, Heart, MapPin } from "lucide-reac
 import { FileUpload } from "@/components/file-upload";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthButtons } from "@/components/auth-buttons";
+import { AppFooter } from "@/components/app-footer";
 import { Card } from "@/components/ui/card";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -178,11 +179,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="border-t py-8 mt-12">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>COROS、Garmin、Polar、Suuntoなど主要なスポーツウォッチのFITファイルに対応</p>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

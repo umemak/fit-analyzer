@@ -13,6 +13,7 @@ import {
   Zap
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AppFooter } from "@/components/app-footer";
 import { MetricCard } from "@/components/metric-card";
 import { WorkoutCharts } from "@/components/workout-charts";
 import { AIAnalysisPanel } from "@/components/ai-analysis-panel";
@@ -322,6 +323,8 @@ export default function Analysis() {
           <LapTable laps={laps} />
         </div>
       </main>
+      
+      <AppFooter />
     </div>
   );
 }
