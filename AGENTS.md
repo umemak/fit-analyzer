@@ -104,6 +104,22 @@ AI分析が失敗（クォーター制限等）しても、ワークアウトデ
 
 **実装**: エラー時にデフォルトのAI分析オブジェクトを返す
 
+#### 4. 条件付き認証プロバイダー表示
+
+GitHub/Google OAuthボタンは環境変数が設定されている場合のみ表示されます。
+
+**環境変数**:
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+
+**実装**:
+- APIエンドポイント: `/api/auth/config` がOAuth有効性を返す
+- フロントエンド: `auth-buttons.tsx` が設定を取得して条件付きレンダリング
+- 開発環境: `server/routes.ts`
+- 本番環境: `functions-src/api/auth/config.ts`
+
+メール/パスワード認証は常に表示されます。
+
 ## 開発ワークフロー
 
 ### Git コミット規約

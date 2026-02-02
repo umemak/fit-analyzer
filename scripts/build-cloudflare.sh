@@ -79,6 +79,14 @@ npx esbuild functions-src/api/auth/login.ts \
   --outfile=dist/functions/api/auth/login.js \
   --minify
 
+npx esbuild functions-src/api/auth/config.ts \
+  --bundle \
+  --platform=neutral \
+  --target=es2022 \
+  --format=esm \
+  --outfile=dist/functions/api/auth/config.js \
+  --minify
+
 # Bundle workouts function
 npx esbuild functions-src/api/workouts.ts \
   --bundle \
@@ -134,6 +142,7 @@ echo "        login.js                 # メール/パスワードログイン"
 echo "        register.js              # メール/パスワード登録"
 echo "        logout.js                # ログアウト"
 echo "        me.js                    # 認証状態確認"
+echo "        config.js                # OAuth設定確認"
 echo ""
 echo "To deploy:"
 echo "  npx wrangler pages deploy dist"

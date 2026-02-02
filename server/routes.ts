@@ -81,6 +81,15 @@ export async function registerRoutes(
     }
   });
   
+  // Auth config endpoint
+  app.get("/api/auth/config", (req, res) => {
+    const config = {
+      githubEnabled: !!(process.env.GITHUB_CLIENT_ID),
+      googleEnabled: !!(process.env.GOOGLE_CLIENT_ID),
+    };
+    res.json(config);
+  });
+
   // FIT file analysis endpoint
   app.post("/api/analyze", upload.single("file"), async (req, res) => {
     try {

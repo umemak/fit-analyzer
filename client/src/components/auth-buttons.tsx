@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -32,6 +32,18 @@ export function AuthButtons() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authConfig, setAuthConfig] = useState<{ githubEnabled: boolean; googleEnabled: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/config')
+      .then(res => res.json())
+      .then(config => setAuthConfig(config))
+      .catch(err => {
+        console.error('Failed to fetch auth config:', err);
+        // Fallback: disable OAuth if config fetch fails
+        setAuthConfig({ githubEnabled: false, googleEnabled: false });
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,26 +86,30 @@ export function AuthButtons() {
   if (!user) {
     return (
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => login("github")}
-          className="gap-2"
-          data-testid="button-login-github"
-        >
-          <SiGithub className="h-4 w-4" />
-          <span className="hidden sm:inline">GitHub</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => login("google")}
-          className="gap-2"
-          data-testid="button-login-google"
-        >
-          <SiGoogle className="h-4 w-4" />
-          <span className="hidden sm:inline">Google</span>
-        </Button>
+        {authConfig?.githubEnabled && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => login("github")}
+            className="gap-2"
+            data-testid="button-login-github"
+          >
+            <SiGithub className="h-4 w-4" />
+            <span className="hidden sm:inline">GitHub</span>
+          </Button>
+        )}
+        {authConfig?.googleEnabled && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => login("google")}
+            className="gap-2"
+            data-testid="button-login-google"
+          >
+            <SiGoogle className="h-4 w-4" />
+            <span className="hidden sm:inline">Google</span>
+          </Button>
+        )}
         
         <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
