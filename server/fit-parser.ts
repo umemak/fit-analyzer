@@ -18,6 +18,7 @@ interface FitRecord {
 interface FitLap {
   start_time?: Date;
   total_elapsed_time?: number;
+  total_timer_time?: number;
   total_distance?: number;
   avg_heart_rate?: number;
   max_heart_rate?: number;
@@ -87,17 +88,33 @@ function transformFitData(data: FitData, fileName: string): WorkoutData {
     throw new Error("No session data found in FIT file");
   }
 
+  // Calculate avgSpeed based on totalTimerTime (excluding pause time)
+  const totalTimerTime = session.total_timer_time || session.total_elapsed_time || 0;
+  const totalDistance = session.total_distance || 0;
+  const avgSpeedFromTimer = totalTimerTime > 0 && totalDistance > 0 
+    ? totalDistance / totalTimerTime 
+    : session.avg_speed;
+
+  console.log('[FIT Parser] Time calculation:', {
+    totalElapsedTime: session.total_elapsed_time,
+    totalTimerTime: totalTimerTime,
+    pauseTime: (session.total_elapsed_time || 0) - totalTimerTime,
+    totalDistance: totalDistance,
+    avgSpeedOriginal: session.avg_speed,
+    avgSpeedRecalculated: avgSpeedFromTimer,
+  });
+
   const summary: WorkoutSummary = {
     sport: session.sport || "generic",
     subSport: session.sub_sport,
     startTime: session.start_time?.toISOString() || new Date().toISOString(),
     totalElapsedTime: session.total_elapsed_time || 0,
-    totalTimerTime: session.total_timer_time || session.total_elapsed_time || 0,
-    totalDistance: session.total_distance || 0,
+    totalTimerTime: totalTimerTime,
+    totalDistance: totalDistance,
     totalCalories: session.total_calories,
     avgHeartRate: session.avg_heart_rate,
     maxHeartRate: session.max_heart_rate,
-    avgSpeed: session.avg_speed,
+    avgSpeed: avgSpeedFromTimer, // Use timer-based speed for accurate pace
     maxSpeed: session.max_speed,
     avgCadence: session.avg_cadence,
     maxCadence: session.max_cadence,
@@ -122,17 +139,26 @@ function transformFitData(data: FitData, fileName: string): WorkoutData {
     longitude: record.position_long,
   }));
 
-  const transformedLaps: Lap[] = laps.map((lap) => ({
-    startTime: lap.start_time?.toISOString() || new Date().toISOString(),
-    totalElapsedTime: lap.total_elapsed_time || 0,
-    totalDistance: lap.total_distance || 0,
-    avgHeartRate: lap.avg_heart_rate,
-    maxHeartRate: lap.max_heart_rate,
-    avgSpeed: lap.avg_speed,
-    maxSpeed: lap.max_speed,
-    avgCadence: lap.avg_cadence,
-    avgPower: lap.avg_power,
-  }));
+  const transformedLaps: Lap[] = laps.map((lap) => {
+    // Recalculate avgSpeed based on timer_time if available
+    const lapTimerTime = lap.total_timer_time || lap.total_elapsed_time || 0;
+    const lapDistance = lap.total_distance || 0;
+    const lapAvgSpeed = lapTimerTime > 0 && lapDistance > 0
+      ? lapDistance / lapTimerTime
+      : lap.avg_speed;
+
+    return {
+      startTime: lap.start_time?.toISOString() || new Date().toISOString(),
+      totalElapsedTime: lap.total_elapsed_time || 0,
+      totalDistance: lapDistance,
+      avgHeartRate: lap.avg_heart_rate,
+      maxHeartRate: lap.max_heart_rate,
+      avgSpeed: lapAvgSpeed, // Use timer-based speed
+      maxSpeed: lap.max_speed,
+      avgCadence: lap.avg_cadence,
+      avgPower: lap.avg_power,
+    };
+  });
 
   return {
     id: randomUUID(),

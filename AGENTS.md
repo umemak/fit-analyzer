@@ -391,6 +391,39 @@ bash scripts/build-cloudflare.sh 2>&1 | grep -i "git hash"
 2. `vite.config.cloudflare.ts` でVITE_GIT_HASH読み込みを確認
 3. Cloudflare Pages のビルドコマンドが正しいか確認
 
+### ペースが実際より遅く表示される（停止時間が含まれている）
+
+**症状**: タイマー停止した時間がペース計算に含まれ、実際より遅いペースが表示される
+
+**原因**: FITファイルには以下2つの時間フィールドがあります：
+- `total_elapsed_time`: 経過時間（停止時間を含む）
+- `total_timer_time`: タイマー時間（停止時間を除く、実際の運動時間）
+
+従来は`total_elapsed_time`または元の`avg_speed`をそのまま使用していました。
+
+**解決策**: `avgSpeed`を`total_timer_time`ベースで再計算する（実装済み）
+
+**実装箇所**:
+- `server/fit-parser.ts`: セッションとラップの`avgSpeed`を`total_timer_time`から計算
+  ```typescript
+  const avgSpeedFromTimer = totalTimerTime > 0 && totalDistance > 0 
+    ? totalDistance / totalTimerTime 
+    : session.avg_speed;
+  ```
+- ログ出力で確認可能：
+  ```
+  [FIT Parser] Time calculation: {
+    totalElapsedTime: 3600,
+    totalTimerTime: 3400,
+    pauseTime: 200,  // 停止時間
+    avgSpeedRecalculated: 3.5  // timer_timeベースの速度
+  }
+  ```
+
+**表示**:
+- メインの「時間」には`totalTimerTime`を表示
+- 停止時間がある場合は「経過: XX:XX」と補足表示
+
 ## 既知の制限
 
 1. **地図表示**: Leafletの問題により一時的に無効化（RouteMapコンポーネント）

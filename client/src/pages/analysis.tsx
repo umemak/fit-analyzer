@@ -260,8 +260,13 @@ export default function Analysis() {
             />
             <MetricCard
               title="時間"
-              value={formatDuration(summary.totalElapsedTime)}
+              value={formatDuration(summary.totalTimerTime)}
               icon={Clock}
+              description={
+                summary.totalTimerTime !== summary.totalElapsedTime
+                  ? `経過: ${formatDuration(summary.totalElapsedTime)}`
+                  : undefined
+              }
             />
             <MetricCard
               title="平均ペース"
