@@ -139,13 +139,22 @@ function transformFitData(data: FitData, fileName: string): WorkoutData {
     longitude: record.position_long,
   }));
 
-  const transformedLaps: Lap[] = laps.map((lap) => {
+  const transformedLaps: Lap[] = laps.map((lap, index) => {
     // Recalculate avgSpeed based on timer_time if available
     const lapTimerTime = lap.total_timer_time || lap.total_elapsed_time || 0;
     const lapDistance = lap.total_distance || 0;
     const lapAvgSpeed = lapTimerTime > 0 && lapDistance > 0
       ? lapDistance / lapTimerTime
       : lap.avg_speed;
+
+    // Debug log for first lap
+    if (index === 0) {
+      console.log('[FIT Parser] Lap 1 time data:', {
+        total_timer_time: lap.total_timer_time,
+        total_elapsed_time: lap.total_elapsed_time,
+        calculated_lapTimerTime: lapTimerTime,
+      });
+    }
 
     return {
       startTime: lap.start_time?.toISOString() || new Date().toISOString(),
