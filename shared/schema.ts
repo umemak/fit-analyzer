@@ -16,6 +16,7 @@ export const workoutRecordSchema = z.object({
 export const lapSchema = z.object({
   startTime: z.string(),
   totalElapsedTime: z.number(),
+  totalTimerTime: z.number(),
   totalDistance: z.number(),
   avgHeartRate: z.number().optional(),
   maxHeartRate: z.number().optional(),

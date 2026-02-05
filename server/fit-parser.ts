@@ -150,6 +150,7 @@ function transformFitData(data: FitData, fileName: string): WorkoutData {
     return {
       startTime: lap.start_time?.toISOString() || new Date().toISOString(),
       totalElapsedTime: lap.total_elapsed_time || 0,
+      totalTimerTime: lapTimerTime, // Add timer time for laps
       totalDistance: lapDistance,
       avgHeartRate: lap.avg_heart_rate,
       maxHeartRate: lap.max_heart_rate,

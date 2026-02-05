@@ -63,7 +63,7 @@ export function LapTable({ laps }: LapTableProps) {
                   {(lap.totalDistance / 1000).toFixed(2)} km
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatDuration(lap.totalElapsedTime)}
+                  {formatDuration(lap.totalTimerTime)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {formatPace(lap.avgSpeed || 0)} /km
