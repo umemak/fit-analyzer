@@ -16,6 +16,42 @@ function getCookie(cookieHeader: string | null, name: string): string | null {
   return null;
 }
 
+async function getRecentWorkouts(
+  context: EventContext<Env, string, unknown>,
+  userId: string,
+  limit: number = 5
+): Promise<WorkoutHistory[]> {
+  try {
+    if (!context.env.DB) {
+      return [];
+    }
+
+    const results = await context.env.DB.prepare(
+      `SELECT sport, start_time, total_distance, total_time, avg_pace, avg_heart_rate 
+       FROM workouts 
+       WHERE user_id = ? 
+       ORDER BY start_time DESC 
+       LIMIT ?`
+    ).bind(userId, limit).all();
+
+    if (!results.results || results.results.length === 0) {
+      return [];
+    }
+
+    return results.results.map((row: any) => ({
+      date: row.start_time,
+      sport: row.sport || 'unknown',
+      distance: row.total_distance || 0,
+      duration: row.total_time || 0,
+      avgPace: row.avg_pace,
+      avgHeartRate: row.avg_heart_rate,
+    }));
+  } catch (error) {
+    console.error('[Get Recent Workouts] Error:', error);
+    return [];
+  }
+}
+
 async function getUser(context: EventContext<Env, string, unknown>): Promise<{ id: string } | null> {
   const sessionId = getCookie(context.request.headers.get('Cookie'), 'session');
   if (!sessionId) return null;
@@ -421,7 +457,20 @@ function calculatePaceConsistency(laps: Lap[]): string {
   return "変動が大きい（CV >= 10%）";
 }
 
-async function analyzeWorkout(workout: WorkoutData, ai: Ai): Promise<AIAnalysis> {
+interface WorkoutHistory {
+  date: string;
+  sport: string;
+  distance: number;
+  duration: number;
+  avgPace?: number;
+  avgHeartRate?: number;
+}
+
+async function analyzeWorkout(
+  workout: WorkoutData, 
+  ai: Ai,
+  recentWorkouts: WorkoutHistory[] = []
+): Promise<AIAnalysis> {
   const { summary, laps, records } = workout;
   
   // Limit data sent to AI to avoid quota issues
@@ -431,6 +480,16 @@ async function analyzeWorkout(workout: WorkoutData, ai: Ai): Promise<AIAnalysis>
   // Calculate statistics without sending all records
   const heartRateVariation = calculateHeartRateVariation(records);
   const paceConsistency = calculatePaceConsistency(laps);
+  
+  // Build history context
+  let historyContext = '';
+  if (recentWorkouts.length > 0) {
+    historyContext = `\n## 直近のワークアウト履歴
+${recentWorkouts.slice(0, 3).map((w, i) => {
+  const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
+  return `${i + 1}. ${daysSince}日前: ${(w.distance / 1000).toFixed(1)}km, ${formatDuration(w.duration)}`;
+}).join('\n')}\n`;
+  }
   
   const prompt = `あなたはプロのランニング・トライアスロンコーチです。以下のワークアウトデータを分析し、日本語で詳細な評価を提供してください。
 
@@ -454,7 +513,7 @@ ${laps.length > maxLaps ? `\n（全${laps.length}ラップ中、${maxLaps}ラッ
 ## 追加分析
 - 心拍数変動: ${heartRateVariation}
 - ペース一貫性: ${paceConsistency}
-
+${historyContext}
 以下のJSON形式で簡潔に回答してください:
 
 {
@@ -556,9 +615,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // Get user for history context
+    const user = await getUser(context);
+    const recentWorkouts = user ? await getRecentWorkouts(context, user.id, 5) : [];
+
     let aiAnalysis: AIAnalysis;
     try {
-      aiAnalysis = await analyzeWorkout(workoutData, context.env.AI);
+      aiAnalysis = await analyzeWorkout(workoutData, context.env.AI, recentWorkouts);
     } catch (aiError: any) {
       console.error("AI analysis error:", aiError);
       
@@ -580,7 +643,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     let saved = false;
-    const user = await getUser(context);
     if (user && context.env.DB) {
       try {
         await saveWorkout(context, user.id, workoutData, aiAnalysis);

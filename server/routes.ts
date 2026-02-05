@@ -5,6 +5,24 @@ import { parseFitFile } from "./fit-parser";
 import { analyzeWorkout } from "./ai-analyzer";
 import type { WorkoutData } from "@shared/schema";
 
+// Mock database for development - in production this would query D1
+interface WorkoutHistory {
+  date: string;
+  sport: string;
+  distance: number;
+  duration: number;
+  avgPace?: number;
+  avgHeartRate?: number;
+}
+
+// Mock function to get recent workouts - replace with actual DB query in production
+async function getRecentWorkouts(userId?: string, limit: number = 5): Promise<WorkoutHistory[]> {
+  // In development mode, we don't have a persistent database
+  // Return empty array for now
+  // In production (Cloudflare), this will query D1 database
+  return [];
+}
+
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
@@ -111,11 +129,14 @@ export async function registerRoutes(
         });
       }
 
-      // Generate AI analysis
+      // Get recent workouts for context (if user is authenticated)
+      const recentWorkouts = await getRecentWorkouts(undefined, 5);
+
+      // Generate AI analysis with history context
       let aiAnalysis;
       let aiError = null;
       try {
-        aiAnalysis = await analyzeWorkout(workoutData);
+        aiAnalysis = await analyzeWorkout(workoutData, recentWorkouts);
       } catch (aiError: any) {
         console.error("AI analysis error in routes:", aiError);
         

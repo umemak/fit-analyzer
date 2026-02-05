@@ -25,14 +25,38 @@ function formatPace(speedMps: number | undefined): string {
   return `${mins}:${secs.toString().padStart(2, "0")}/km`;
 }
 
-export async function analyzeWorkout(workout: WorkoutData): Promise<AIAnalysis> {
+interface WorkoutHistory {
+  date: string;
+  sport: string;
+  distance: number; // meters
+  duration: number; // seconds
+  avgPace?: number; // min/km
+  avgHeartRate?: number;
+}
+
+export async function analyzeWorkout(
+  workout: WorkoutData, 
+  recentWorkouts: WorkoutHistory[] = []
+): Promise<AIAnalysis> {
   const { summary, laps, records } = workout;
   
   // Calculate additional metrics for analysis
   const heartRateVariation = calculateHeartRateVariation(records);
   const paceConsistency = calculatePaceConsistency(laps);
   
-  console.log(`[AI Analyzer] Starting analysis for ${summary.sport} workout with ${laps.length} laps`);
+  console.log(`[AI Analyzer] Starting analysis for ${summary.sport} workout with ${laps.length} laps, ${recentWorkouts.length} recent workouts`);
+  
+  // Build history context
+  let historyContext = '';
+  if (recentWorkouts.length > 0) {
+    historyContext = `\n## 直近のワークアウト履歴（過去5回）
+${recentWorkouts.map((w, i) => {
+  const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
+  return `${i + 1}. ${w.date} (${daysSince}日前) - ${w.sport}: ${(w.distance / 1000).toFixed(2)}km, ${formatDuration(w.duration)}${w.avgPace ? `, ペース ${w.avgPace.toFixed(2)}分/km` : ''}${w.avgHeartRate ? `, 平均心拍 ${Math.round(w.avgHeartRate)}bpm` : ''}`;
+}).join('\n')}
+
+この履歴を踏まえて、トレーニングの進捗、頻度、回復状況を評価してください。`;
+  }
   
   const prompt = `あなたはプロのランニング・トライアスロンコーチです。以下のワークアウトデータを分析し、日本語で詳細な評価を提供してください。
 
@@ -55,18 +79,19 @@ ${laps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(
 ## 追加分析
 - 心拍数変動: ${heartRateVariation}
 - ペース一貫性: ${paceConsistency}
+${historyContext}
 
 以下のJSON形式で回答してください。各フィールドは具体的で実用的なアドバイスを含めてください:
 
 {
   "overallScore": (1-10の整数、ワークアウトの総合評価),
-  "performanceSummary": "(100-150文字程度でワークアウト全体の評価を要約)",
-  "strengths": ["(強みを3つ挙げてください)"],
-  "areasForImprovement": ["(改善点を2-3つ挙げてください)"],
-  "trainingRecommendations": ["(次回のトレーニングに向けた具体的なアドバイスを3つ)"],
-  "heartRateAnalysis": "(心拍数データがある場合、心拍ゾーンと効率性について分析)",
-  "paceAnalysis": "(ペースの安定性と戦略について分析)",
-  "recoveryAdvice": "(このワークアウト後の回復アドバイス)"
+  "performanceSummary": "(100-150文字程度でワークアウト全体の評価を要約。履歴がある場合は前回との比較や進捗を含める)",
+  "strengths": ["(強みを3つ挙げてください。履歴と比較した改善点も含める)"],
+  "areasForImprovement": ["(改善点を2-3つ挙げてください。履歴から見える課題も指摘)"],
+  "trainingRecommendations": ["(次回のトレーニングに向けた具体的なアドバイスを3つ。トレーニング頻度や回復期間も考慮)"],
+  "heartRateAnalysis": "(心拍数データがある場合、心拍ゾーンと効率性について分析。履歴と比較した心肺機能の変化も評価)",
+  "paceAnalysis": "(ペースの安定性と戦略について分析。履歴と比較したペースの向上や変化を評価)",
+  "recoveryAdvice": "(このワークアウト後の回復アドバイス。直近のトレーニング頻度を考慮した具体的な休息期間を提案)"
 }`;
 
   let response;
@@ -76,7 +101,7 @@ ${laps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(
       messages: [
         {
           role: "system",
-          content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。JSONフォーマットで回答してください。",
+          content: "あなたはエリートレベルのエンデュランススポーツコーチです。科学的根拠に基づいた分析と、実践的で個別化されたアドバイスを提供します。ユーザーの過去のワークアウト履歴を考慮し、進捗状況、トレーニング頻度、回復状況を総合的に評価してください。JSONフォーマットで回答してください。",
         },
         {
           role: "user",
