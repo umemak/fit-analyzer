@@ -16,7 +16,11 @@ interface WorkoutHistory {
 }
 
 // Mock function to get recent workouts - replace with actual DB query in production
-async function getRecentWorkouts(userId?: string, limit: number = 5): Promise<WorkoutHistory[]> {
+async function getRecentWorkouts(
+  userId: string | undefined, 
+  currentWorkoutStartTime: string,
+  limit: number = 5
+): Promise<WorkoutHistory[]> {
   // In development mode, we don't have a persistent database
   // Return empty array for now
   // In production (Cloudflare), this will query D1 database
@@ -130,7 +134,7 @@ export async function registerRoutes(
       }
 
       // Get recent workouts for context (if user is authenticated)
-      const recentWorkouts = await getRecentWorkouts(undefined, 5);
+      const recentWorkouts = await getRecentWorkouts(undefined, workoutData.summary.startTime, 5);
 
       // Generate AI analysis with history context
       let aiAnalysis;

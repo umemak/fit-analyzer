@@ -19,20 +19,27 @@ function getCookie(cookieHeader: string | null, name: string): string | null {
 async function getRecentWorkouts(
   context: EventContext<Env, string, unknown>,
   userId: string,
+  currentWorkoutStartTime: string,
   limit: number = 5
 ): Promise<WorkoutHistory[]> {
   try {
     if (!context.env.DB) {
+      console.log('[Get Recent Workouts] DB not available');
       return [];
     }
 
+    console.log('[Get Recent Workouts] Fetching for user:', userId, 'before:', currentWorkoutStartTime);
+
+    // Get workouts that started BEFORE the current workout
     const results = await context.env.DB.prepare(
       `SELECT sport, start_time, total_distance, total_time, avg_pace, avg_heart_rate 
        FROM workouts 
-       WHERE user_id = ? 
+       WHERE user_id = ? AND start_time < ?
        ORDER BY start_time DESC 
        LIMIT ?`
-    ).bind(userId, limit).all();
+    ).bind(userId, currentWorkoutStartTime, limit).all();
+
+    console.log('[Get Recent Workouts] Query returned:', results.results?.length || 0, 'workouts');
 
     if (!results.results || results.results.length === 0) {
       return [];
@@ -615,9 +622,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // Get user for history context
+    // Get user for history context (BEFORE saving current workout)
     const user = await getUser(context);
-    const recentWorkouts = user ? await getRecentWorkouts(context, user.id, 5) : [];
+    const recentWorkouts = user 
+      ? await getRecentWorkouts(context, user.id, workoutData.summary.startTime, 5) 
+      : [];
+    
+    console.log('[Analyze] User:', user ? `logged in (${user.id})` : 'not logged in');
+    console.log('[Analyze] Recent workouts count:', recentWorkouts.length);
+    if (recentWorkouts.length > 0) {
+      console.log('[Analyze] Recent workouts:', recentWorkouts.map(w => ({
+        date: w.date,
+        distance: (w.distance / 1000).toFixed(1) + 'km',
+        duration: Math.floor(w.duration / 60) + 'min'
+      })));
+    }
 
     let aiAnalysis: AIAnalysis;
     try {
