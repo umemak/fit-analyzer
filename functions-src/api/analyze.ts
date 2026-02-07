@@ -20,6 +20,7 @@ async function getRecentWorkouts(
   context: EventContext<Env, string, unknown>,
   userId: string,
   currentWorkoutStartTime: string,
+  currentSport: string,
   limit: number = 5
 ): Promise<WorkoutHistory[]> {
   try {
@@ -28,18 +29,20 @@ async function getRecentWorkouts(
       return [];
     }
 
-    console.log('[Get Recent Workouts] Fetching for user:', userId, 'before:', currentWorkoutStartTime);
+    console.log('[Get Recent Workouts] Fetching for user:', userId, 'sport:', currentSport, 'before:', currentWorkoutStartTime);
 
-    // Get workouts that started BEFORE the current workout
+    // Get workouts that:
+    // 1. Started BEFORE the current workout
+    // 2. Are the SAME sport (for meaningful comparison)
     const results = await context.env.DB.prepare(
       `SELECT sport, start_time, total_distance, total_time, avg_pace, avg_heart_rate 
        FROM workouts 
-       WHERE user_id = ? AND start_time < ?
+       WHERE user_id = ? AND sport = ? AND start_time < ?
        ORDER BY start_time DESC 
        LIMIT ?`
-    ).bind(userId, currentWorkoutStartTime, limit).all();
+    ).bind(userId, currentSport, currentWorkoutStartTime, limit).all();
 
-    console.log('[Get Recent Workouts] Query returned:', results.results?.length || 0, 'workouts');
+    console.log('[Get Recent Workouts] Query returned:', results.results?.length || 0, 'workouts for sport:', currentSport);
 
     if (!results.results || results.results.length === 0) {
       return [];
@@ -625,7 +628,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // Get user for history context (BEFORE saving current workout)
     const user = await getUser(context);
     const recentWorkouts = user 
-      ? await getRecentWorkouts(context, user.id, workoutData.summary.startTime, 5) 
+      ? await getRecentWorkouts(context, user.id, workoutData.summary.startTime, workoutData.summary.sport, 5) 
       : [];
     
     console.log('[Analyze] User:', user ? `logged in (${user.id})` : 'not logged in');

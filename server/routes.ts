@@ -19,6 +19,7 @@ interface WorkoutHistory {
 async function getRecentWorkouts(
   userId: string | undefined, 
   currentWorkoutStartTime: string,
+  currentSport: string,
   limit: number = 5
 ): Promise<WorkoutHistory[]> {
   // In development mode, we don't have a persistent database
@@ -134,7 +135,7 @@ export async function registerRoutes(
       }
 
       // Get recent workouts for context (if user is authenticated)
-      const recentWorkouts = await getRecentWorkouts(undefined, workoutData.summary.startTime, 5);
+      const recentWorkouts = await getRecentWorkouts(undefined, workoutData.summary.startTime, workoutData.summary.sport, 5);
 
       // Generate AI analysis with history context
       let aiAnalysis;
