@@ -493,15 +493,27 @@ async function analyzeWorkout(
   
   // Build history context
   let historyContext = '';
+  let historyNote = '';
   if (recentWorkouts.length > 0) {
+    const daysSinceLast = Math.floor((new Date().getTime() - new Date(recentWorkouts[0].date).getTime()) / (1000 * 60 * 60 * 24));
+    const avgDistance = recentWorkouts.reduce((sum, w) => sum + w.distance, 0) / recentWorkouts.length / 1000;
+    const currentDistance = summary.totalDistance / 1000;
+    
     historyContext = `\n## 直近のワークアウト履歴
 ${recentWorkouts.slice(0, 3).map((w, i) => {
   const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
   return `${i + 1}. ${daysSince}日前: ${(w.distance / 1000).toFixed(1)}km, ${formatDuration(w.duration)}`;
-}).join('\n')}\n`;
+}).join('\n')}
+前回からの日数: ${daysSinceLast}日
+過去平均距離: ${avgDistance.toFixed(1)}km
+今回距離: ${currentDistance.toFixed(1)}km (${currentDistance > avgDistance ? '+' : ''}${(currentDistance - avgDistance).toFixed(1)}km)\n`;
+    
+    historyNote = `履歴あり。前回から${daysSinceLast}日経過。performanceSummaryに必ず「前回から${daysSinceLast}日ぶり」「距離が${(currentDistance - avgDistance).toFixed(1)}km${currentDistance > avgDistance ? '増加' : '減少'}」など具体的比較を含めること。`;
+  } else {
+    historyNote = '初回記録。履歴なし。単体評価のみ。';
   }
   
-  const prompt = `あなたはプロのランニング・トライアスロンコーチです。以下のワークアウトデータを分析し、日本語で詳細な評価を提供してください。
+  const prompt = `プロコーチとして分析。${historyNote}
 
 ## ワークアウト概要
 - スポーツ: ${summary.sport}

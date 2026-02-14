@@ -48,17 +48,49 @@ export async function analyzeWorkout(
   
   // Build history context
   let historyContext = '';
+  let historyInstructions = '';
   if (recentWorkouts.length > 0) {
     historyContext = `\n## 直近のワークアウト履歴（過去5回）
 ${recentWorkouts.map((w, i) => {
   const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
   return `${i + 1}. ${w.date} (${daysSince}日前) - ${w.sport}: ${(w.distance / 1000).toFixed(2)}km, ${formatDuration(w.duration)}${w.avgPace ? `, ペース ${w.avgPace.toFixed(2)}分/km` : ''}${w.avgHeartRate ? `, 平均心拍 ${Math.round(w.avgHeartRate)}bpm` : ''}`;
-}).join('\n')}
+}).join('\n')}`;
 
-この履歴を踏まえて、トレーニングの進捗、頻度、回復状況を評価してください。`;
+    // Calculate training frequency
+    const intervals = [];
+    for (let i = 0; i < recentWorkouts.length - 1; i++) {
+      const days = Math.floor((new Date(recentWorkouts[i].date).getTime() - new Date(recentWorkouts[i + 1].date).getTime()) / (1000 * 60 * 60 * 24));
+      intervals.push(days);
+    }
+    const avgInterval = intervals.length > 0 ? intervals.reduce((a, b) => a + b, 0) / intervals.length : 0;
+    
+    // Calculate average distance and pace from history
+    const avgHistoryDistance = recentWorkouts.reduce((sum, w) => sum + w.distance, 0) / recentWorkouts.length / 1000;
+    const avgHistoryPace = recentWorkouts.filter(w => w.avgPace).length > 0
+      ? recentWorkouts.filter(w => w.avgPace).reduce((sum, w) => sum + (w.avgPace || 0), 0) / recentWorkouts.filter(w => w.avgPace).length
+      : null;
+    
+    historyInstructions = `
+
+**重要：履歴データを必ず活用してください**
+- 過去の平均トレーニング間隔: ${avgInterval.toFixed(1)}日
+- 過去の平均距離: ${avgHistoryDistance.toFixed(1)}km
+${avgHistoryPace ? `- 過去の平均ペース: ${avgHistoryPace.toFixed(2)}分/km` : ''}
+- 今回と前回の距離比較: ${summary.totalDistance > recentWorkouts[0].distance ? '増加' : '減少'}
+- 前回からの経過日数: ${Math.floor((new Date().getTime() - new Date(recentWorkouts[0].date).getTime()) / (1000 * 60 * 60 * 24))}日
+
+performanceSummaryには必ず「前回より○○」「○日ぶりのトレーニング」などの比較を含めてください。
+strengthsには過去との比較による改善点を具体的に含めてください。
+trainingRecommendationsには過去の頻度（平均${avgInterval.toFixed(1)}日間隔）を考慮した次回のタイミングを提案してください。`;
+  } else {
+    historyInstructions = `
+
+**注意：これは初回のワークアウト記録です**
+履歴データがないため、このワークアウト単体での評価を行ってください。今後のトレーニング計画の基準となる記録です。`;
   }
   
   const prompt = `あなたはプロのランニング・トライアスロンコーチです。以下のワークアウトデータを分析し、日本語で詳細な評価を提供してください。
+${historyInstructions}
 
 ## ワークアウト概要
 - スポーツ: ${summary.sport}
