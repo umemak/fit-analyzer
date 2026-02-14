@@ -1,9 +1,14 @@
 import FitParser from "fit-file-parser";
+import OpenAI from "openai";
 
 interface Env {
   AI: Ai;
   DB: D1Database;
   WORKOUT_DATA: R2Bucket;
+  AI_PROVIDER?: string;  // "workers-ai" (default), "openai", or "groq"
+  GROQ_API_KEY?: string;
+  AI_INTEGRATIONS_OPENAI_API_KEY?: string;
+  AI_INTEGRATIONS_OPENAI_BASE_URL?: string;
 }
 
 function getCookie(cookieHeader: string | null, name: string): string | null {
@@ -478,7 +483,7 @@ interface WorkoutHistory {
 
 async function analyzeWorkout(
   workout: WorkoutData, 
-  ai: Ai,
+  context: EventContext<Env, string, unknown>,
   recentWorkouts: WorkoutHistory[] = []
 ): Promise<AIAnalysis> {
   const { summary, laps, records } = workout;
@@ -560,12 +565,54 @@ ${historyContext}
     },
   ];
 
-  const response = await ai.run("@cf/meta/llama-3.1-70b-instruct", {
-    messages,
-    max_tokens: 1024,  // Reduced to avoid quota issues with large files
-  }) as { response: string };
-
-  const content = response.response;
+  // Determine AI provider
+  const aiProvider = context.env.AI_PROVIDER || "workers-ai";
+  console.log(`[AI Analyzer] Using AI provider: ${aiProvider}`);
+  
+  let content: string;
+  
+  if (aiProvider === "groq" && context.env.GROQ_API_KEY) {
+    // Use Groq API via OpenAI SDK
+    const groqClient = new OpenAI({
+      apiKey: context.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+    
+    console.log(`[AI Analyzer] Using Groq model: llama-3.1-8b-instant`);
+    const groqResponse = await groqClient.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages,
+      response_format: { type: "json_object" },
+      max_tokens: 1024,
+    });
+    
+    content = groqResponse.choices[0].message.content || "{}";
+  } else if (aiProvider === "openai" && context.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    // Use OpenAI API
+    const openaiClient = new OpenAI({
+      apiKey: context.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: context.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+    
+    console.log(`[AI Analyzer] Using OpenAI model: gpt-4o`);
+    const openaiResponse = await openaiClient.chat.completions.create({
+      model: "gpt-4o",
+      messages,
+      response_format: { type: "json_object" },
+      max_tokens: 1024,
+    });
+    
+    content = openaiResponse.choices[0].message.content || "{}";
+  } else {
+    // Default to Cloudflare Workers AI
+    console.log(`[AI Analyzer] Using Workers AI model: llama-3.1-70b-instruct`);
+    const workersResponse = await context.env.AI.run("@cf/meta/llama-3.1-70b-instruct", {
+      messages,
+      max_tokens: 1024,
+    }) as { response: string };
+    
+    content = workersResponse.response;
+  }
   if (!content) {
     throw new Error("No response from AI");
   }
@@ -655,7 +702,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     let aiAnalysis: AIAnalysis;
     try {
-      aiAnalysis = await analyzeWorkout(workoutData, context.env.AI, recentWorkouts);
+      aiAnalysis = await analyzeWorkout(workoutData, context, recentWorkouts);
     } catch (aiError: any) {
       console.error("AI analysis error:", aiError);
       

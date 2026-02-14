@@ -12,7 +12,7 @@
 - **Backend**: Cloudflare Pages Functions (Workers環境)
 - **Database**: Cloudflare D1 (SQLite)
 - **Storage**: Cloudflare R2 (Object Storage)
-- **AI**: OpenAI API (GPT-4o) または Cloudflare Workers AI
+- **AI**: OpenAI API (GPT-4o)、Groq API (Llama 3.1 8B)、または Cloudflare Workers AI
 - **認証**: GitHub OAuth, Google OAuth, Email/Password
 
 ### 現在のバージョン確認
@@ -224,13 +224,33 @@ Zodスキーマで型定義：
 ### Cloudflare Pages設定
 
 **Environment variables**:
-- `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI APIキー
+- `AI_PROVIDER`: AI プロバイダー選択 (`workers-ai` (デフォルト) / `openai` / `groq`)
+- `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI APIキー（`AI_PROVIDER=openai` の場合）
 - `AI_INTEGRATIONS_OPENAI_BASE_URL`: OpenAI Base URL（オプション）
+- `GROQ_API_KEY`: Groq APIキー（`AI_PROVIDER=groq` の場合）
+
+**開発環境 (.env)**:
+- `AI_PROVIDER`: AI プロバイダー選択 (`openai` / `groq`)
+- `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI APIキー
+- `GROQ_API_KEY`: Groq APIキー
 
 **Bindings**:
 - `DB`: D1 Database (`fit-analyzer-db`)
 - `AI`: Workers AI
 - `WORKOUT_DATA`: R2 Bucket (`fit-analyzer-workout-data`)
+
+### AI プロバイダー比較
+
+| プロバイダー | モデル | 入力コスト | 出力コスト | 速度 | 品質 |
+|---|---|---|---|---|---|
+| **Groq** (推奨) | llama-3.1-8b-instant | $0.05/1M | $0.08/1M | 超高速 (840 TPS) | 良好 |
+| OpenAI | gpt-4o | $5.00/1M | $15.00/1M | 普通 | 最高 |
+| Workers AI | llama-3.1-70b-instruct | 無料 (制限あり) | - | 普通 | 良好 |
+
+**コスト試算** (1,000回分析):
+- Groq: **$0.14** (最安)
+- OpenAI: $20.00
+- Workers AI: 無料 (クォーター制限あり)
 
 ## よくある作業
 

@@ -1,9 +1,17 @@
 import OpenAI from "openai";
 import type { WorkoutData, AIAnalysis } from "@shared/schema";
 
+// AI Provider Configuration
+const AI_PROVIDER = process.env.AI_PROVIDER || "openai"; // "openai" or "groq"
+
+// Initialize OpenAI client (supports both OpenAI and Groq via baseURL)
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: AI_PROVIDER === "groq" 
+    ? process.env.GROQ_API_KEY 
+    : process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: AI_PROVIDER === "groq" 
+    ? "https://api.groq.com/openai/v1"
+    : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
 function formatDuration(seconds: number): string {
@@ -128,8 +136,15 @@ ${historyContext}
 
   let response;
   try {
+    // Select model based on provider
+    const model = AI_PROVIDER === "groq" 
+      ? "llama-3.1-8b-instant"  // Groq: fastest, cheapest model
+      : "gpt-4o";                // OpenAI: high quality model
+    
+    console.log(`[AI Analyzer] Using AI provider: ${AI_PROVIDER}, model: ${model}`);
+    
     response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model,
       messages: [
         {
           role: "system",
