@@ -224,7 +224,12 @@ Zodスキーマで型定義：
 ### Cloudflare Pages設定
 
 **Environment variables**:
-- `AI_PROVIDER`: AI プロバイダー選択 (`workers-ai` (デフォルト) / `openai` / `groq`)
+- `AI_PROVIDER`: AI プロバイダー選択
+  - `workers-ai` (デフォルト): llama-3.1-70b-instruct
+  - `workers-ai-120b` (推奨): gpt-oss-120b - OpenAI の最新推論モデル
+  - `openai`: gpt-4o
+  - `groq`: llama-3.1-8b-instant
+- `WORKERS_AI_MODEL`: Workers AI モデル名を直接指定（オプション、例: `@cf/openai/gpt-oss-120b`）
 - `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI APIキー（`AI_PROVIDER=openai` の場合）
 - `AI_INTEGRATIONS_OPENAI_BASE_URL`: OpenAI Base URL（オプション）
 - `GROQ_API_KEY`: Groq APIキー（`AI_PROVIDER=groq` の場合）
@@ -241,16 +246,26 @@ Zodスキーマで型定義：
 
 ### AI プロバイダー比較
 
-| プロバイダー | モデル | 入力コスト | 出力コスト | 速度 | 品質 |
-|---|---|---|---|---|---|
-| **Groq** (推奨) | llama-3.1-8b-instant | $0.05/1M | $0.08/1M | 超高速 (840 TPS) | 良好 |
-| OpenAI | gpt-4o | $5.00/1M | $15.00/1M | 普通 | 最高 |
-| Workers AI | llama-3.1-70b-instruct | 無料 (制限あり) | - | 普通 | 良好 |
+| プロバイダー | モデル | パラメータ | 入力コスト | 出力コスト | 速度 | 推論能力 | 品質 |
+|---|---|---|---|---|---|---|---|
+| **Workers AI** (推奨🥇) | gpt-oss-120b | 117B (5.1B active) | 無料 | - | 普通 | ★★★★★ | 最高 |
+| Workers AI | llama-3.1-70b-instruct | 70B | 無料 | - | 普通 | ★★★★☆ | 高 |
+| Groq | llama-3.1-8b-instant | 8B | $0.05/1M | $0.08/1M | 超高速 (840 TPS) | ★★★☆☆ | 良好 |
+| OpenAI | gpt-4o | 非公開 | $5.00/1M | $15.00/1M | 普通 | ★★★★★ | 最高 |
+
+**gpt-oss-120b の特徴**:
+- OpenAI が 2025年8月リリースの最新オープンウェイトモデル
+- Mixture-of-Experts (MoE) アーキテクチャで効率的
+- Chain-of-Thought (CoT) 推論を内蔵
+- Reasoning effort を調整可能 (low/medium/high)
+- Structured Outputs (JSON) に最適化
+- o4-mini 相当の推論能力
 
 **コスト試算** (1,000回分析):
-- Groq: **$0.14** (最安)
+- **Workers AI (gpt-oss-120b)**: **無料** (最もコスパ良い🥇)
+- Workers AI (llama-3.1-70b): 無料 (クォーター制限あり)
+- Groq: $0.14
 - OpenAI: $20.00
-- Workers AI: 無料 (クォーター制限あり)
 
 ## よくある作業
 

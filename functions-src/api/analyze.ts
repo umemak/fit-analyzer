@@ -5,7 +5,8 @@ interface Env {
   AI: Ai;
   DB: D1Database;
   WORKOUT_DATA: R2Bucket;
-  AI_PROVIDER?: string;  // "workers-ai" (default), "openai", or "groq"
+  AI_PROVIDER?: string;  // "workers-ai" (default), "workers-ai-120b", "openai", or "groq"
+  WORKERS_AI_MODEL?: string;  // Workers AI model name (default: "@cf/meta/llama-3.1-70b-instruct")
   GROQ_API_KEY?: string;
   AI_INTEGRATIONS_OPENAI_API_KEY?: string;
   AI_INTEGRATIONS_OPENAI_BASE_URL?: string;
@@ -605,8 +606,15 @@ ${historyContext}
     content = openaiResponse.choices[0].message.content || "{}";
   } else {
     // Default to Cloudflare Workers AI
-    console.log(`[AI Analyzer] Using Workers AI model: llama-3.1-70b-instruct`);
-    const workersResponse = await context.env.AI.run("@cf/meta/llama-3.1-70b-instruct", {
+    // Use gpt-oss-120b if AI_PROVIDER is "workers-ai-120b" or WORKERS_AI_MODEL is set
+    let workersModel = context.env.WORKERS_AI_MODEL || "@cf/meta/llama-3.1-70b-instruct";
+    
+    if (aiProvider === "workers-ai-120b") {
+      workersModel = "@cf/openai/gpt-oss-120b";
+    }
+    
+    console.log(`[AI Analyzer] Using Workers AI model: ${workersModel}`);
+    const workersResponse = await context.env.AI.run(workersModel, {
       messages,
       max_tokens: 1024,
     }) as { response: string };
