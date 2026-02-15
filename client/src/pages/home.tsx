@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 export default function Home() {
   const [, setLocation] = useLocation();
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState<string>("");
   const [error, setError] = useState<string>();
   const { user } = useAuth();
 
@@ -53,36 +54,71 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
       
+      setProgressMessage("FITファイルを解析中...");
       setUploadProgress(10);
       
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        body: formData,
-      });
+      // Simulate progress with step messages
+      const startTime = Date.now();
+      const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed < 3000) {
+          // 0-3秒: データ分析
+          setProgressMessage("ステップ1/3: データ分析中（ペース・心拍数・履歴）...");
+          setUploadProgress(10 + (elapsed / 3000) * 25);
+        } else if (elapsed < 6000) {
+          // 3-6秒: 評価生成
+          setProgressMessage("ステップ2/3: 評価生成中（強み・改善点）...");
+          setUploadProgress(35 + ((elapsed - 3000) / 3000) * 30);
+        } else if (elapsed < 9000) {
+          // 6-9秒: 総合評価
+          setProgressMessage("ステップ3/3: 総合評価とアドバイス生成中...");
+          setUploadProgress(65 + ((elapsed - 6000) / 3000) * 25);
+        } else {
+          // 9秒以上: 完了待ち
+          setProgressMessage("最終処理中...");
+          setUploadProgress(Math.min(95, 90 + ((elapsed - 9000) / 3000) * 5));
+        }
+      }, 100);
       
-      setUploadProgress(90);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "ファイルの解析に失敗しました");
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData,
+        });
+        
+        clearInterval(progressInterval);
+        setProgressMessage("AI分析完了");
+        setUploadProgress(100);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "ファイルの解析に失敗しました");
+        }
+        
+        return response.json();
+      } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       setUploadProgress(100);
+      setProgressMessage("完了");
       sessionStorage.setItem("analysisResult", JSON.stringify(data));
-      setLocation("/analysis");
+      setTimeout(() => setLocation("/analysis"), 500);
     },
     onError: (err: Error) => {
       setError(err.message);
       setUploadProgress(0);
+      setProgressMessage("");
     },
   });
 
   const handleFileSelect = useCallback((file: File) => {
     setError(undefined);
     setUploadProgress(0);
+    setProgressMessage("");
     uploadMutation.mutate(file);
   }, [uploadMutation]);
 
@@ -138,6 +174,7 @@ export default function Home() {
             onFileSelect={handleFileSelect}
             isUploading={uploadMutation.isPending}
             uploadProgress={uploadProgress}
+            progressMessage={progressMessage}
             error={error}
           />
 

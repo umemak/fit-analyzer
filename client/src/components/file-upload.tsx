@@ -9,10 +9,11 @@ interface FileUploadProps {
   onFileSelect: (file: File) => void;
   isUploading: boolean;
   uploadProgress: number;
+  progressMessage?: string;
   error?: string;
 }
 
-export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }: FileUploadProps) {
+export function FileUpload({ onFileSelect, isUploading, uploadProgress, progressMessage, error }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
 
@@ -78,9 +79,13 @@ export function FileUpload({ onFileSelect, isUploading, uploadProgress, error }:
         {isUploading ? (
           <div className="flex flex-col items-center gap-4 px-8 w-full max-w-sm">
             <Activity className="h-12 w-12 text-primary animate-pulse" />
-            <p className="text-lg font-medium">ファイルを解析中...</p>
+            {progressMessage ? (
+              <p className="text-lg font-medium">{progressMessage}</p>
+            ) : (
+              <p className="text-lg font-medium">ファイルを解析中...</p>
+            )}
             <Progress value={uploadProgress} className="w-full" />
-            <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
+            <p className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 p-8">
