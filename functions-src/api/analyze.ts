@@ -473,6 +473,24 @@ function calculatePaceConsistency(laps: Lap[]): string {
   return "変動が大きい（CV >= 10%）";
 }
 
+interface DataAnalysisResult {
+  paceAnalysis: string;
+  heartRateAnalysis: string;
+  historyComparison: string;
+}
+
+interface EvaluationResult {
+  strengths: string[];
+  areasForImprovement: string[];
+}
+
+interface FinalAnalysisResult {
+  overallScore: number;
+  performanceSummary: string;
+  trainingRecommendations: string[];
+  recoveryAdvice: string;
+}
+
 interface WorkoutHistory {
   date: string;
   sport: string;
@@ -482,44 +500,38 @@ interface WorkoutHistory {
   avgHeartRate?: number;
 }
 
-async function analyzeWorkout(
-  workout: WorkoutData, 
+// Step 1: Data Analysis (objective facts)
+async function analyzeWorkoutData(
+  workout: WorkoutData,
   context: EventContext<Env, string, unknown>,
   recentWorkouts: WorkoutHistory[] = []
-): Promise<AIAnalysis> {
+): Promise<DataAnalysisResult> {
   const { summary, laps, records } = workout;
   
-  // Limit data sent to AI to avoid quota issues
   const maxLaps = 10;
   const limitedLaps = laps.slice(0, maxLaps);
-  
-  // Calculate statistics without sending all records
   const heartRateVariation = calculateHeartRateVariation(records);
   const paceConsistency = calculatePaceConsistency(laps);
   
   // Build history context
   let historyContext = '';
-  let historyNote = '';
   if (recentWorkouts.length > 0) {
     const daysSinceLast = Math.floor((new Date().getTime() - new Date(recentWorkouts[0].date).getTime()) / (1000 * 60 * 60 * 24));
     const avgDistance = recentWorkouts.reduce((sum, w) => sum + w.distance, 0) / recentWorkouts.length / 1000;
     const currentDistance = summary.totalDistance / 1000;
     
-    historyContext = `\n## 直近のワークアウト履歴
+    historyContext = `
+## 直近のワークアウト履歴
 ${recentWorkouts.slice(0, 3).map((w, i) => {
   const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
   return `${i + 1}. ${daysSince}日前: ${(w.distance / 1000).toFixed(1)}km, ${formatDuration(w.duration)}`;
 }).join('\n')}
 前回からの日数: ${daysSinceLast}日
 過去平均距離: ${avgDistance.toFixed(1)}km
-今回距離: ${currentDistance.toFixed(1)}km (${currentDistance > avgDistance ? '+' : ''}${(currentDistance - avgDistance).toFixed(1)}km)\n`;
-    
-    historyNote = `履歴あり。前回から${daysSinceLast}日経過。performanceSummaryに必ず「前回から${daysSinceLast}日ぶり」「距離が${(currentDistance - avgDistance).toFixed(1)}km${currentDistance > avgDistance ? '増加' : '減少'}」など具体的比較を含めること。`;
-  } else {
-    historyNote = '初回記録。履歴なし。単体評価のみ。';
+今回距離: ${currentDistance.toFixed(1)}km (${currentDistance > avgDistance ? '+' : ''}${(currentDistance - avgDistance).toFixed(1)}km)`;
   }
   
-  const prompt = `プロコーチとして分析。${historyNote}
+  const prompt = `エンデュランススポーツコーチとして、以下のワークアウトデータを客観的に分析してください。
 
 ## ワークアウト概要
 - スポーツ: ${summary.sport}
@@ -531,34 +543,130 @@ ${summary.avgHeartRate ? `- 平均心拍数: ${Math.round(summary.avgHeartRate)}
 ${summary.maxHeartRate ? `- 最大心拍数: ${Math.round(summary.maxHeartRate)} bpm` : ''}
 ${summary.totalCalories ? `- 消費カロリー: ${Math.round(summary.totalCalories)} kcal` : ''}
 ${summary.totalAscent ? `- 獲得標高: ${Math.round(summary.totalAscent)} m` : ''}
-${summary.avgCadence ? `- 平均ケイデンス: ${Math.round(summary.avgCadence)} spm` : ''}
-${summary.avgPower ? `- 平均パワー: ${Math.round(summary.avgPower)} W` : ''}
 
 ## ラップ情報（最初の${maxLaps}ラップ）
 ${limitedLaps.map((lap, i) => `ラップ${i + 1}: ${(lap.totalDistance / 1000).toFixed(2)}km, ${formatDuration(lap.totalElapsedTime)}, ペース ${formatPace(lap.avgSpeed)}${lap.avgHeartRate ? `, HR ${Math.round(lap.avgHeartRate)}` : ''}`).join('\n')}
-${laps.length > maxLaps ? `\n（全${laps.length}ラップ中、${maxLaps}ラップを表示）` : ''}
 
-## 追加分析
+## 統計データ
 - 心拍数変動: ${heartRateVariation}
 - ペース一貫性: ${paceConsistency}
 ${historyContext}
-以下のJSON形式で簡潔に回答してください:
 
+以下のJSON形式で客観的な分析結果を回答してください：
 {
-  "overallScore": (1-10の整数),
-  "performanceSummary": "(80-100文字で要約)",
-  "strengths": ["強み1", "強み2", "強み3"],
-  "areasForImprovement": ["改善点1", "改善点2"],
-  "trainingRecommendations": ["推奨1", "推奨2", "推奨3"],
-  "heartRateAnalysis": "(心拍数分析、50文字程度)",
-  "paceAnalysis": "(ペース分析、50文字程度)",
-  "recoveryAdvice": "(回復アドバイス、50文字程度)"
+  "paceAnalysis": "ペースの特徴と推移を100文字程度で詳細に分析",
+  "heartRateAnalysis": "心拍数の特徴と効率性を100文字程度で詳細に分析",
+  "historyComparison": "過去のワークアウトとの比較（距離、ペース、頻度など）を100文字程度で分析。履歴がない場合は単体での特徴を記述"
 }`;
 
+  const content = await callAI(context, prompt, "データ分析");
+  const analysis = JSON.parse(content) as DataAnalysisResult;
+  
+  console.log('[Step 1: Data Analysis] Completed');
+  return analysis;
+}
+
+// Step 2: Evaluation (based on data analysis)
+async function evaluatePerformance(
+  workout: WorkoutData,
+  context: EventContext<Env, string, unknown>,
+  dataAnalysis: DataAnalysisResult
+): Promise<EvaluationResult> {
+  const { summary } = workout;
+  
+  const prompt = `エンデュランススポーツコーチとして、以下のデータ分析結果を基に評価を行ってください。
+
+## ワークアウト基本情報
+- スポーツ: ${summary.sport}
+- 距離: ${(summary.totalDistance / 1000).toFixed(2)} km
+- 時間: ${formatDuration(summary.totalElapsedTime)}
+- 平均ペース: ${formatPace(summary.avgSpeed)}
+
+## データ分析結果
+### ペース分析
+${dataAnalysis.paceAnalysis}
+
+### 心拍数分析
+${dataAnalysis.heartRateAnalysis}
+
+### 履歴比較
+${dataAnalysis.historyComparison}
+
+上記の分析結果を踏まえて、以下のJSON形式で評価してください：
+{
+  "strengths": ["強み1（具体的なデータを含めて50文字程度）", "強み2", "強み3"],
+  "areasForImprovement": ["改善点1（具体的な数値目標を含めて50文字程度）", "改善点2"]
+}`;
+
+  const content = await callAI(context, prompt, "評価生成");
+  const evaluation = JSON.parse(content) as EvaluationResult;
+  
+  console.log('[Step 2: Evaluation] Completed');
+  return evaluation;
+}
+
+// Step 3: Final Analysis (comprehensive summary and advice)
+async function generateFinalAnalysis(
+  workout: WorkoutData,
+  context: EventContext<Env, string, unknown>,
+  dataAnalysis: DataAnalysisResult,
+  evaluation: EvaluationResult
+): Promise<FinalAnalysisResult> {
+  const { summary } = workout;
+  
+  const prompt = `エンデュランススポーツコーチとして、以下のデータ分析と評価を総合して、最終的なアドバイスを提供してください。
+
+## ワークアウト基本情報
+- スポーツ: ${summary.sport}
+- 距離: ${(summary.totalDistance / 1000).toFixed(2)} km
+- 時間: ${formatDuration(summary.totalElapsedTime)}
+
+## データ分析結果
+### ペース分析
+${dataAnalysis.paceAnalysis}
+
+### 心拍数分析
+${dataAnalysis.heartRateAnalysis}
+
+### 履歴比較
+${dataAnalysis.historyComparison}
+
+## 評価結果
+### 強み
+${evaluation.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+### 改善点
+${evaluation.areasForImprovement.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+
+上記すべてを考慮して、以下のJSON形式で総合的な分析とアドバイスを提供してください：
+{
+  "overallScore": (1-10の整数、上記の分析と評価を総合的に判断),
+  "performanceSummary": "今回のワークアウト全体を150文字程度で要約。データ分析の重要ポイントと評価結果を統合した内容",
+  "trainingRecommendations": [
+    "次回のトレーニングに向けた具体的な推奨1（距離、ペース、心拍ゾーンなど数値を含めて70文字程度）",
+    "推奨2（頻度や回復期間を考慮）",
+    "推奨3（長期的な目標に向けて）"
+  ],
+  "recoveryAdvice": "このワークアウト後の回復について、具体的な期間と方法を100文字程度でアドバイス"
+}`;
+
+  const content = await callAI(context, prompt, "総合評価");
+  const finalAnalysis = JSON.parse(content) as FinalAnalysisResult;
+  
+  console.log('[Step 3: Final Analysis] Completed');
+  return finalAnalysis;
+}
+
+// Helper function to call AI with error handling
+async function callAI(
+  context: EventContext<Env, string, unknown>,
+  prompt: string,
+  step: string
+): Promise<string> {
   const messages = [
     {
       role: "system" as const,
-      content: "エンデュランススポーツコーチとして科学的に分析し、JSONで回答してください。",
+      content: "あなたはエンデュランススポーツの専門コーチです。科学的根拠に基づいた分析を行い、必ずJSON形式で回答してください。",
     },
     {
       role: "user" as const,
@@ -566,84 +674,103 @@ ${historyContext}
     },
   ];
 
-  // Determine AI provider
   const aiProvider = context.env.AI_PROVIDER || "workers-ai";
-  console.log(`[AI Analyzer] Using AI provider: ${aiProvider}`);
+  console.log(`[AI Analyzer - ${step}] Using AI provider: ${aiProvider}`);
   
   let content: string;
   
   if (aiProvider === "groq" && context.env.GROQ_API_KEY) {
-    // Use Groq API via OpenAI SDK
     const groqClient = new OpenAI({
       apiKey: context.env.GROQ_API_KEY,
       baseURL: "https://api.groq.com/openai/v1",
     });
     
-    console.log(`[AI Analyzer] Using Groq model: llama-3.1-8b-instant`);
     const groqResponse = await groqClient.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages,
       response_format: { type: "json_object" },
-      max_tokens: 1024,
+      max_tokens: 2048,
     });
     
     content = groqResponse.choices[0].message.content || "{}";
   } else if (aiProvider === "openai" && context.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-    // Use OpenAI API
     const openaiClient = new OpenAI({
       apiKey: context.env.AI_INTEGRATIONS_OPENAI_API_KEY,
       baseURL: context.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
     });
     
-    console.log(`[AI Analyzer] Using OpenAI model: gpt-4o`);
     const openaiResponse = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages,
       response_format: { type: "json_object" },
-      max_tokens: 1024,
+      max_tokens: 2048,
     });
     
     content = openaiResponse.choices[0].message.content || "{}";
   } else {
-    // Default to Cloudflare Workers AI
-    // Use gpt-oss-120b if AI_PROVIDER is "workers-ai-120b" or WORKERS_AI_MODEL is set
     let workersModel = context.env.WORKERS_AI_MODEL || "@cf/meta/llama-3.1-70b-instruct";
     
     if (aiProvider === "workers-ai-120b") {
       workersModel = "@cf/openai/gpt-oss-120b";
     }
     
-    console.log(`[AI Analyzer] Using Workers AI model: ${workersModel}`);
     const workersResponse = await context.env.AI.run(workersModel, {
       messages,
-      max_tokens: 1024,
+      max_tokens: 2048,
     }) as { response: string };
     
     content = workersResponse.response;
   }
+  
   if (!content) {
-    throw new Error("No response from AI");
+    throw new Error(`No response from AI in ${step}`);
   }
 
-  // Extract JSON from response (handle cases where AI includes markdown code blocks)
+  // Extract JSON from response
   let jsonContent = content;
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     jsonContent = jsonMatch[0];
   }
-
-  const analysis = JSON.parse(jsonContent) as AIAnalysis;
   
-  return {
-    overallScore: Math.min(10, Math.max(1, analysis.overallScore || 7)),
-    performanceSummary: analysis.performanceSummary || "ワークアウトが完了しました。",
-    strengths: Array.isArray(analysis.strengths) ? analysis.strengths.slice(0, 5) : ["ワークアウトを完了しました"],
-    areasForImprovement: Array.isArray(analysis.areasForImprovement) ? analysis.areasForImprovement.slice(0, 5) : [],
-    trainingRecommendations: Array.isArray(analysis.trainingRecommendations) ? analysis.trainingRecommendations.slice(0, 5) : [],
-    heartRateAnalysis: analysis.heartRateAnalysis,
-    paceAnalysis: analysis.paceAnalysis,
-    recoveryAdvice: analysis.recoveryAdvice || "適切な休息と水分補給を心がけてください。",
-  };
+  return jsonContent;
+}
+
+async function analyzeWorkout(
+  workout: WorkoutData, 
+  context: EventContext<Env, string, unknown>,
+  recentWorkouts: WorkoutHistory[] = []
+): Promise<AIAnalysis> {
+  console.log('[AI Analyzer] Starting 3-step analysis process');
+  
+  try {
+    // Step 1: Data Analysis
+    const dataAnalysis = await analyzeWorkoutData(workout, context, recentWorkouts);
+    
+    // Step 2: Evaluation
+    const evaluation = await evaluatePerformance(workout, context, dataAnalysis);
+    
+    // Step 3: Final Analysis
+    const finalAnalysis = await generateFinalAnalysis(workout, context, dataAnalysis, evaluation);
+    
+    // Combine all results
+    const result: AIAnalysis = {
+      overallScore: Math.min(10, Math.max(1, finalAnalysis.overallScore)),
+      performanceSummary: finalAnalysis.performanceSummary,
+      strengths: evaluation.strengths.slice(0, 5),
+      areasForImprovement: evaluation.areasForImprovement.slice(0, 5),
+      trainingRecommendations: finalAnalysis.trainingRecommendations.slice(0, 5),
+      heartRateAnalysis: dataAnalysis.heartRateAnalysis,
+      paceAnalysis: dataAnalysis.paceAnalysis,
+      recoveryAdvice: finalAnalysis.recoveryAdvice,
+    };
+    
+    console.log('[AI Analyzer] 3-step analysis completed successfully');
+    return result;
+  } catch (error: any) {
+    console.error('[AI Analyzer] Error in multi-step analysis:', error);
+    throw error;
+  }
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
