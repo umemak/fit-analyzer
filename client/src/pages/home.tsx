@@ -57,27 +57,31 @@ export default function Home() {
       setProgressMessage("FITファイルを解析中...");
       setUploadProgress(10);
       
-      // Simulate progress with step messages
+      // Simulate progress with 4-step messages
       const startTime = Date.now();
       const progressInterval = setInterval(() => {
         const elapsed = Date.now() - startTime;
         
-        if (elapsed < 3000) {
-          // 0-3秒: データ分析
-          setProgressMessage("ステップ1/3: データ分析中（ペース・心拍数・履歴）...");
-          setUploadProgress(10 + (elapsed / 3000) * 25);
-        } else if (elapsed < 6000) {
-          // 3-6秒: 評価生成
-          setProgressMessage("ステップ2/3: 評価生成中（強み・改善点）...");
-          setUploadProgress(35 + ((elapsed - 3000) / 3000) * 30);
-        } else if (elapsed < 9000) {
-          // 6-9秒: 総合評価
-          setProgressMessage("ステップ3/3: 総合評価とアドバイス生成中...");
-          setUploadProgress(65 + ((elapsed - 6000) / 3000) * 25);
+        if (elapsed < 2000) {
+          // 0-2秒: データ分析
+          setProgressMessage("ステップ1/4: データ分析中（ペース・心拍数・履歴）...");
+          setUploadProgress(10 + (elapsed / 2000) * 20);
+        } else if (elapsed < 4000) {
+          // 2-4秒: 期待値予測
+          setProgressMessage("ステップ2/4: 過去データから期待値を予測中...");
+          setUploadProgress(30 + ((elapsed - 2000) / 2000) * 20);
+        } else if (elapsed < 7000) {
+          // 4-7秒: 評価生成（期待値との比較含む）
+          setProgressMessage("ステップ3/4: 期待値と実績を比較して評価中...");
+          setUploadProgress(50 + ((elapsed - 4000) / 3000) * 25);
+        } else if (elapsed < 10000) {
+          // 7-10秒: 総合評価とアドバイス
+          setProgressMessage("ステップ4/4: 総合スコアとトレーニングアドバイス生成中...");
+          setUploadProgress(75 + ((elapsed - 7000) / 3000) * 15);
         } else {
-          // 9秒以上: 完了待ち
+          // 10秒以上: 完了待ち
           setProgressMessage("最終処理中...");
-          setUploadProgress(Math.min(95, 90 + ((elapsed - 9000) / 3000) * 5));
+          setUploadProgress(Math.min(95, 90 + ((elapsed - 10000) / 3000) * 5));
         }
       }, 100);
       

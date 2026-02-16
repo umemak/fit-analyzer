@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { WorkoutData, AIAnalysis } from "@shared/schema";
+import type { WorkoutData, AIAnalysis } from "../shared/schema";
 
 // AI Provider Configuration
 const AI_PROVIDER = process.env.AI_PROVIDER || "openai"; // "openai" or "groq"
@@ -58,6 +58,14 @@ interface FinalAnalysisResult {
   performanceSummary: string;
   trainingRecommendations: string[];
   recoveryAdvice: string;
+}
+
+interface ExpectedPerformance {
+  expectedPace?: string;
+  expectedDistance?: number;
+  expectedHeartRate?: number;
+  confidence: string;
+  reasoning: string;
 }
 
 function calculateHeartRateVariation(records: any[]): string {
@@ -185,12 +193,75 @@ ${historyContext}
   return JSON.parse(content) as DataAnalysisResult;
 }
 
+// Step 1.5: Predict Expected Performance
+async function predictExpectedPerformance(
+  workout: WorkoutData,
+  recentWorkouts: WorkoutHistory[] = []
+): Promise<ExpectedPerformance | null> {
+  if (recentWorkouts.length < 2) {
+    return null; // 履歴が少なすぎる場合は予測しない
+  }
+
+  const { summary } = workout;
+  const currentDistance = summary.totalDistance / 1000;
+  const daysSinceLast = Math.floor((new Date().getTime() - new Date(recentWorkouts[0].date).getTime()) / (1000 * 60 * 60 * 24));
+
+  const historyWithPace = recentWorkouts.filter(w => w.avgPace);
+  const historyWithHR = recentWorkouts.filter(w => w.avgHeartRate);
+
+  const prompt = `エンデュランススポーツコーチとして、以下の過去のトレーニング履歴から、今回のワークアウトの期待値を予測してください。
+
+## 過去のワークアウト履歴（直近5回）
+${recentWorkouts.map((w, i) => {
+  const daysSince = Math.floor((new Date().getTime() - new Date(w.date).getTime()) / (1000 * 60 * 60 * 24));
+  return `${i + 1}. ${daysSince}日前: ${w.sport}, ${(w.distance / 1000).toFixed(1)}km, ${formatDuration(w.duration)}${w.avgPace ? `, ペース ${w.avgPace}` : ''}${w.avgHeartRate ? `, 心拍数 ${Math.round(w.avgHeartRate)}bpm` : ''}`;
+}).join('\n')}
+
+## 今回のワークアウト情報
+- スポーツ: ${summary.sport}
+- 距離: ${currentDistance.toFixed(1)} km
+- 前回からの日数: ${daysSinceLast}日
+
+上記の履歴データから、今回のワークアウトで期待される以下のパフォーマンスを予測してください：
+{
+  "expectedPace": "${historyWithPace.length >= 2 ? '5:30/km のような形式で予測ペースを記載。過去の傾向（改善/停滞/低下）を考慮すること' : 'null'}",
+  "expectedDistance": ${currentDistance.toFixed(1)},
+  "expectedHeartRate": ${historyWithHR.length >= 2 ? '過去のデータから予測される平均心拍数（整数）' : 'null'},
+  "confidence": "high/medium/low のいずれか（データ数、最終トレーニングからの日数、トレンドの一貫性に基づく）",
+  "reasoning": "期待値の根拠を80文字程度で説明（過去のトレンド、回復期間、距離の変化などを考慮）"
+}`;
+
+  const content = await callAI(prompt, "Step 1.5: Expected Performance Prediction");
+  const result = JSON.parse(content) as ExpectedPerformance;
+  
+  return result;
+}
+
 // Step 2: Evaluation
 async function evaluatePerformance(
   workout: WorkoutData,
-  dataAnalysis: DataAnalysisResult
+  dataAnalysis: DataAnalysisResult,
+  expectedPerformance: ExpectedPerformance | null
 ): Promise<EvaluationResult> {
   const { summary } = workout;
+  
+  let expectedContext = '';
+  if (expectedPerformance) {
+    expectedContext = `
+
+## 期待値との比較
+### 予測された期待値
+- 期待ペース: ${expectedPerformance.expectedPace || 'データ不足'}
+- 期待心拍数: ${expectedPerformance.expectedHeartRate ? `${expectedPerformance.expectedHeartRate}bpm` : 'データ不足'}
+- 予測の確度: ${expectedPerformance.confidence}
+- 予測根拠: ${expectedPerformance.reasoning}
+
+### 実際のパフォーマンス
+- 実際のペース: ${formatPace(summary.avgSpeed)}
+- 実際の心拍数: ${summary.avgHeartRate ? `${Math.round(summary.avgHeartRate)}bpm` : 'データなし'}
+
+**重要**: 期待値と実際の結果の差（期待超過/期待通り/期待未達）を評価に反映してください。`;
+  }
   
   const prompt = `エンデュランススポーツコーチとして、以下のデータ分析結果を基に評価を行ってください。
 
@@ -209,12 +280,15 @@ ${dataAnalysis.heartRateAnalysis}
 
 ### 履歴比較
 ${dataAnalysis.historyComparison}
+${expectedContext}
 
 上記の分析結果を踏まえて、以下のJSON形式で評価してください：
 {
   "strengths": ["強み1（具体的なデータを含めて50文字程度）", "強み2", "強み3"],
   "areasForImprovement": ["改善点1（具体的な数値目標を含めて50文字程度）", "改善点2"]
-}`;
+}
+
+**注意**: 期待値が提供されている場合、期待値を上回った点を強みに、下回った点を改善点に明確に含めてください。`;
 
   const content = await callAI(prompt, "Step 2: Evaluation");
   return JSON.parse(content) as EvaluationResult;
@@ -224,9 +298,23 @@ ${dataAnalysis.historyComparison}
 async function generateFinalAnalysis(
   workout: WorkoutData,
   dataAnalysis: DataAnalysisResult,
-  evaluation: EvaluationResult
+  evaluation: EvaluationResult,
+  expectedPerformance: ExpectedPerformance | null
 ): Promise<FinalAnalysisResult> {
   const { summary } = workout;
+  
+  let expectedSummary = '';
+  if (expectedPerformance) {
+    expectedSummary = `
+
+## 期待値と実際の結果の比較
+- 予測確度: ${expectedPerformance.confidence}
+- 予測根拠: ${expectedPerformance.reasoning}
+- 期待ペース vs 実際: ${expectedPerformance.expectedPace || 'N/A'} vs ${formatPace(summary.avgSpeed)}
+${expectedPerformance.expectedHeartRate ? `- 期待心拍数 vs 実際: ${expectedPerformance.expectedHeartRate}bpm vs ${summary.avgHeartRate ? Math.round(summary.avgHeartRate) : 'N/A'}bpm` : ''}
+
+**総合評価への影響**: 期待値を超えた要素はスコアを上げ、期待未達の要素はスコアを下げること。期待通りの場合は中間的な評価とすること。`;
+  }
   
   const prompt = `エンデュランススポーツコーチとして、以下のデータ分析と評価を総合して、最終的なアドバイスを提供してください。
 
@@ -244,6 +332,7 @@ ${dataAnalysis.heartRateAnalysis}
 
 ### 履歴比較
 ${dataAnalysis.historyComparison}
+${expectedSummary}
 
 ## 評価結果
 ### 強み
@@ -254,14 +343,14 @@ ${evaluation.areasForImprovement.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
 上記すべてを考慮して、以下のJSON形式で総合的な分析とアドバイスを提供してください：
 {
-  "overallScore": (1-10の整数、上記の分析と評価を総合的に判断),
-  "performanceSummary": "今回のワークアウト全体を150文字程度で要約。データ分析の重要ポイントと評価結果を統合した内容",
+  "overallScore": (1-10の整数。データ分析、評価、特に期待値との比較結果を総合的に判断。期待超過なら+1〜2、期待未達なら-1〜2の調整を考慮),
+  "performanceSummary": "今回のワークアウト全体を150文字程度で要約。期待値との比較結果を必ず含めること",
   "trainingRecommendations": [
-    "次回のトレーニングに向けた具体的な推奨1（距離、ペース、心拍ゾーンなど数値を含めて70文字程度）",
+    "次回のトレーニングに向けた具体的な推奨1（期待値との差を埋める/伸ばす内容を含めて70文字程度）",
     "推奨2（頻度や回復期間を考慮）",
     "推奨3（長期的な目標に向けて）"
   ],
-  "recoveryAdvice": "このワークアウト後の回復について、具体的な期間と方法を100文字程度でアドバイス"
+  "recoveryAdvice": "このワークアウト後の回復について、期待値との差も考慮した具体的な期間と方法を100文字程度でアドバイス"
 }`;
 
   const content = await callAI(prompt, "Step 3: Final Analysis");
@@ -272,17 +361,23 @@ export async function analyzeWorkout(
   workout: WorkoutData, 
   recentWorkouts: WorkoutHistory[] = []
 ): Promise<AIAnalysis> {
-  console.log(`[AI Analyzer] Starting 3-step analysis process with ${recentWorkouts.length} recent workouts`);
+  console.log(`[AI Analyzer] Starting 4-step analysis process with ${recentWorkouts.length} recent workouts`);
   
   try {
     // Step 1: Data Analysis
     const dataAnalysis = await analyzeWorkoutData(workout, recentWorkouts);
     
-    // Step 2: Evaluation
-    const evaluation = await evaluatePerformance(workout, dataAnalysis);
+    // Step 1.5: Predict Expected Performance (if enough history)
+    const expectedPerformance = await predictExpectedPerformance(workout, recentWorkouts);
+    if (expectedPerformance) {
+      console.log(`[AI Analyzer] Expected performance predicted (confidence: ${expectedPerformance.confidence})`);
+    }
     
-    // Step 3: Final Analysis
-    const finalAnalysis = await generateFinalAnalysis(workout, dataAnalysis, evaluation);
+    // Step 2: Evaluation (with expected performance comparison)
+    const evaluation = await evaluatePerformance(workout, dataAnalysis, expectedPerformance);
+    
+    // Step 3: Final Analysis (incorporating expected vs actual)
+    const finalAnalysis = await generateFinalAnalysis(workout, dataAnalysis, evaluation, expectedPerformance);
     
     // Combine all results
     const result: AIAnalysis = {
@@ -296,7 +391,7 @@ export async function analyzeWorkout(
       recoveryAdvice: finalAnalysis.recoveryAdvice,
     };
     
-    console.log('[AI Analyzer] 3-step analysis completed successfully');
+    console.log('[AI Analyzer] 4-step analysis completed successfully');
     return result;
   } catch (error: any) {
     console.error("[AI Analyzer] Error in multi-step analysis:", error);

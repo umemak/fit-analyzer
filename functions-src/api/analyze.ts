@@ -500,6 +500,90 @@ interface WorkoutHistory {
   avgHeartRate?: number;
 }
 
+interface ExpectedPerformance {
+  expectedPace: number;      // seconds per km
+  expectedHeartRate: number; // bpm
+  expectedDistance: number;  // meters
+  confidence: string;        // "high", "medium", "low"
+  reasoning: string;         // explanation
+}
+
+// Calculate expected performance based on history
+function calculateExpectedPerformance(
+  recentWorkouts: WorkoutHistory[],
+  currentDistance: number
+): ExpectedPerformance | null {
+  if (recentWorkouts.length < 2) {
+    return null; // Not enough data
+  }
+  
+  // Calculate trends
+  const avgPace = recentWorkouts
+    .filter(w => w.avgPace)
+    .reduce((sum, w) => sum + (w.avgPace || 0), 0) / recentWorkouts.filter(w => w.avgPace).length;
+  
+  const avgHR = recentWorkouts
+    .filter(w => w.avgHeartRate)
+    .reduce((sum, w) => sum + (w.avgHeartRate || 0), 0) / recentWorkouts.filter(w => w.avgHeartRate).length;
+  
+  const avgDistance = recentWorkouts.reduce((sum, w) => sum + w.distance, 0) / recentWorkouts.length;
+  
+  // Calculate pace improvement trend (if distance is similar)
+  const similarDistanceWorkouts = recentWorkouts.filter(
+    w => Math.abs(w.distance - currentDistance) < currentDistance * 0.2 // Within 20%
+  );
+  
+  let expectedPace = avgPace;
+  let confidence = "medium";
+  let reasoning = "";
+  
+  if (similarDistanceWorkouts.length >= 2) {
+    // Calculate pace trend for similar distances
+    const paces = similarDistanceWorkouts
+      .filter(w => w.avgPace)
+      .map(w => w.avgPace!);
+    
+    if (paces.length >= 2) {
+      const recentPace = paces[0]; // Most recent
+      const olderPaces = paces.slice(1);
+      const avgOlderPace = olderPaces.reduce((a, b) => a + b, 0) / olderPaces.length;
+      
+      // Improvement rate
+      const improvement = avgOlderPace - recentPace; // Negative if getting slower
+      expectedPace = recentPace - (improvement * 0.3); // Conservative improvement
+      confidence = "high";
+      
+      if (improvement > 0) {
+        reasoning = `類似距離（${(currentDistance / 1000).toFixed(1)}km）で前回から${improvement.toFixed(2)}分/km改善。さらに${(improvement * 0.3).toFixed(2)}分/km向上を期待。`;
+      } else {
+        reasoning = `類似距離での前回ペース${recentPace.toFixed(2)}分/kmを基準。`;
+      }
+    } else {
+      reasoning = `過去平均ペース${avgPace.toFixed(2)}分/kmを基準。`;
+    }
+  } else {
+    // Distance is different, adjust expectation
+    const distanceRatio = currentDistance / avgDistance;
+    if (distanceRatio > 1.5) {
+      expectedPace = avgPace * 1.1; // Expect 10% slower for longer distance
+      reasoning = `通常より${((distanceRatio - 1) * 100).toFixed(0)}%長い距離のため、ペース${(expectedPace - avgPace).toFixed(2)}分/km減を想定。`;
+    } else if (distanceRatio < 0.7) {
+      expectedPace = avgPace * 0.95; // Expect 5% faster for shorter distance
+      reasoning = `通常より${((1 - distanceRatio) * 100).toFixed(0)}%短い距離のため、ペース${(avgPace - expectedPace).toFixed(2)}分/km向上を想定。`;
+    } else {
+      reasoning = `過去平均ペース${avgPace.toFixed(2)}分/kmを基準。`;
+    }
+  }
+  
+  return {
+    expectedPace,
+    expectedHeartRate: avgHR,
+    expectedDistance: avgDistance,
+    confidence,
+    reasoning,
+  };
+}
+
 // Step 1: Data Analysis (objective facts)
 async function analyzeWorkoutData(
   workout: WorkoutData,
@@ -566,13 +650,40 @@ ${historyContext}
   return analysis;
 }
 
-// Step 2: Evaluation (based on data analysis)
+// Step 2: Evaluation (based on data analysis and expected performance)
 async function evaluatePerformance(
   workout: WorkoutData,
   context: EventContext<Env, string, unknown>,
-  dataAnalysis: DataAnalysisResult
+  dataAnalysis: DataAnalysisResult,
+  expectedPerformance: ExpectedPerformance | null
 ): Promise<EvaluationResult> {
   const { summary } = workout;
+  
+  // Build expected performance context
+  let expectedContext = '';
+  if (expectedPerformance) {
+    const actualPaceInSecondsPerKm = summary.avgSpeed > 0 ? 1000 / summary.avgSpeed : 0;
+    const paceDiff = actualPaceInSecondsPerKm - expectedPerformance.expectedPace;
+    const paceStatus = paceDiff < -5 ? '期待を上回る' : paceDiff > 5 ? '期待を下回る' : '期待通り';
+    
+    const hrDiff = summary.avgHeartRate ? Math.abs(summary.avgHeartRate - expectedPerformance.expectedHeartRate) : null;
+    const hrStatus = hrDiff && hrDiff < 5 ? '期待通り' : hrDiff && summary.avgHeartRate! < expectedPerformance.expectedHeartRate ? '期待より低い' : '期待より高い';
+    
+    expectedContext = `
+
+## 期待値との比較
+### 予測された期待値
+- 期待ペース: ${Math.floor(expectedPerformance.expectedPace / 60)}:${String(Math.floor(expectedPerformance.expectedPace % 60)).padStart(2, '0')}/km
+- 期待心拍数: ${Math.round(expectedPerformance.expectedHeartRate)}bpm
+- 予測の確度: ${expectedPerformance.confidence}
+- 予測根拠: ${expectedPerformance.reasoning}
+
+### 実際のパフォーマンス
+- 実際のペース: ${formatPace(summary.avgSpeed)} (${paceStatus}、差: ${paceDiff > 0 ? '+' : ''}${Math.abs(paceDiff).toFixed(0)}秒/km)
+- 実際の心拍数: ${summary.avgHeartRate ? `${Math.round(summary.avgHeartRate)}bpm (${hrStatus}、差: ${hrDiff ? Math.round(hrDiff) : 'N/A'}bpm)` : 'データなし'}
+
+**重要**: 期待値と実際の結果の差（期待超過/期待通り/期待未達）を評価に反映してください。`;
+  }
   
   const prompt = `エンデュランススポーツコーチとして、以下のデータ分析結果を基に評価を行ってください。
 
@@ -591,12 +702,15 @@ ${dataAnalysis.heartRateAnalysis}
 
 ### 履歴比較
 ${dataAnalysis.historyComparison}
+${expectedContext}
 
 上記の分析結果を踏まえて、以下のJSON形式で評価してください：
 {
   "strengths": ["強み1（具体的なデータを含めて50文字程度）", "強み2", "強み3"],
   "areasForImprovement": ["改善点1（具体的な数値目標を含めて50文字程度）", "改善点2"]
-}`;
+}
+
+**注意**: 期待値が提供されている場合、期待値を上回った点を強みに、下回った点を改善点に明確に含めてください。`;
 
   const content = await callAI(context, prompt, "評価生成");
   const evaluation = JSON.parse(content) as EvaluationResult;
@@ -610,9 +724,43 @@ async function generateFinalAnalysis(
   workout: WorkoutData,
   context: EventContext<Env, string, unknown>,
   dataAnalysis: DataAnalysisResult,
-  evaluation: EvaluationResult
+  evaluation: EvaluationResult,
+  recentWorkouts: WorkoutHistory[] = []
 ): Promise<FinalAnalysisResult> {
   const { summary } = workout;
+  
+  // Calculate expected performance
+  const expected = calculateExpectedPerformance(recentWorkouts, summary.totalDistance);
+  
+  let expectationSection = '';
+  if (expected && summary.avgSpeed) {
+    const actualPaceMinPerKm = (1000 / summary.avgSpeed) / 60; // min/km
+    const expectedPaceMinPerKm = expected.expectedPace;
+    const paceDiff = expectedPaceMinPerKm - actualPaceMinPerKm;
+    const paceDiffSeconds = Math.abs(paceDiff * 60);
+    
+    const actualHR = summary.avgHeartRate || 0;
+    const expectedHR = expected.expectedHeartRate || 0;
+    const hrDiff = expectedHR - actualHR;
+    
+    expectationSection = `
+## 予測と実績の比較
+過去の履歴からの予測：${expected.reasoning}
+
+### ペース比較
+- 予測ペース: ${expectedPaceMinPerKm.toFixed(2)}分/km
+- 実際ペース: ${actualPaceMinPerKm.toFixed(2)}分/km
+- 差分: ${paceDiff > 0 ? `予測より${paceDiffSeconds.toFixed(0)}秒速い ✅` : `予測より${paceDiffSeconds.toFixed(0)}秒遅い ⚠️`}
+
+${actualHR > 0 && expectedHR > 0 ? `### 心拍数比較
+- 予測心拍数: ${Math.round(expectedHR)} bpm
+- 実際心拍数: ${Math.round(actualHR)} bpm
+- 差分: ${hrDiff > 0 ? `予測より${Math.abs(hrDiff).toFixed(0)}bpm低い ✅ (効率向上)` : `予測より${Math.abs(hrDiff).toFixed(0)}bpm高い ⚠️`}
+` : ''}
+### 総合判定
+${paceDiff > 0.1 ? '⭐ 期待以上のパフォーマンス！順調な進歩。' : paceDiff > -0.1 ? '✅ 期待通りのパフォーマンス。安定したトレーニング。' : '⚠️ 期待を下回るパフォーマンス。回復不足またはオーバートレーニングの可能性。'}
+`;
+  }
   
   const prompt = `エンデュランススポーツコーチとして、以下のデータ分析と評価を総合して、最終的なアドバイスを提供してください。
 
@@ -630,7 +778,7 @@ ${dataAnalysis.heartRateAnalysis}
 
 ### 履歴比較
 ${dataAnalysis.historyComparison}
-
+${expectationSection}
 ## 評価結果
 ### 強み
 ${evaluation.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}
@@ -638,10 +786,10 @@ ${evaluation.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 ### 改善点
 ${evaluation.areasForImprovement.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
-上記すべてを考慮して、以下のJSON形式で総合的な分析とアドバイスを提供してください：
+上記すべて（特に予測と実績の比較）を考慮して、以下のJSON形式で総合的な分析とアドバイスを提供してください：
 {
-  "overallScore": (1-10の整数、上記の分析と評価を総合的に判断),
-  "performanceSummary": "今回のワークアウト全体を150文字程度で要約。データ分析の重要ポイントと評価結果を統合した内容",
+  "overallScore": (1-10の整数、予測と実績の比較を重視して評価。期待以上なら9-10、期待通りなら7-8、期待以下なら5-6),
+  "performanceSummary": "今回のワークアウト全体を150文字程度で要約。予測と実績の比較結果を必ず含める",
   "trainingRecommendations": [
     "次回のトレーニングに向けた具体的な推奨1（距離、ペース、心拍ゾーンなど数値を含めて70文字程度）",
     "推奨2（頻度や回復期間を考慮）",
@@ -741,17 +889,23 @@ async function analyzeWorkout(
   context: EventContext<Env, string, unknown>,
   recentWorkouts: WorkoutHistory[] = []
 ): Promise<AIAnalysis> {
-  console.log('[AI Analyzer] Starting 3-step analysis process');
+  console.log('[AI Analyzer] Starting 4-step analysis process');
   
   try {
+    // Calculate expected performance (for comparison)
+    const expectedPerformance = calculateExpectedPerformance(recentWorkouts, workout.summary.totalDistance);
+    if (expectedPerformance) {
+      console.log(`[AI Analyzer] Expected performance calculated (confidence: ${expectedPerformance.confidence})`);
+    }
+    
     // Step 1: Data Analysis
     const dataAnalysis = await analyzeWorkoutData(workout, context, recentWorkouts);
     
-    // Step 2: Evaluation
-    const evaluation = await evaluatePerformance(workout, context, dataAnalysis);
+    // Step 2: Evaluation (with expected performance comparison)
+    const evaluation = await evaluatePerformance(workout, context, dataAnalysis, expectedPerformance);
     
-    // Step 3: Final Analysis
-    const finalAnalysis = await generateFinalAnalysis(workout, context, dataAnalysis, evaluation);
+    // Step 3: Final Analysis (recentWorkouts contains expected performance context)
+    const finalAnalysis = await generateFinalAnalysis(workout, context, dataAnalysis, evaluation, recentWorkouts);
     
     // Combine all results
     const result: AIAnalysis = {
@@ -765,7 +919,7 @@ async function analyzeWorkout(
       recoveryAdvice: finalAnalysis.recoveryAdvice,
     };
     
-    console.log('[AI Analyzer] 3-step analysis completed successfully');
+    console.log('[AI Analyzer] 4-step analysis completed successfully');
     return result;
   } catch (error: any) {
     console.error('[AI Analyzer] Error in multi-step analysis:', error);
